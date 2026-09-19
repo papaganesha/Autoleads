@@ -18,15 +18,19 @@ router.post('/', async (req, res, next) => {
   try {
     const { query, location, category } = req.body;
 
-    if (!query) {
-      return res.status(400).json({ error: 'query is required' });
+    console.log('[Search] POST /api/search body:', JSON.stringify(req.body));
+
+    // Build the query: use explicit query, or derive from category
+    const searchQuery = query || category || '';
+    if (!searchQuery && !location) {
+      return res.status(400).json({ error: 'query or category is required' });
     }
 
     // Create search record
     const { data: search, error: searchError } = await supabase
       .from('searches')
       .insert({
-        query,
+        query: searchQuery,
         location: location || null,
         category: category || null,
         status: 'processing',
@@ -43,7 +47,7 @@ router.post('/', async (req, res, next) => {
     // Start pipeline in background (do not await)
     (async () => {
       try {
-        await runPipeline(search.id, query, location, category);
+        await runPipeline(search.id, searchQuery, location, category);
       } catch (err) {
         console.error(`[Search Pipeline] Fatal error for search ${search.id}:`, err.message);
         await supabase

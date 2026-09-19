@@ -78,6 +78,9 @@ async function textSearch(query, location) {
     languageCode: 'pt-BR',
   };
 
+  console.log('[GoogleMaps] textSearch query:', body.textQuery);
+  console.log('[GoogleMaps] API key present:', !!config.googleMapsApiKey, '- length:', (config.googleMapsApiKey || '').length);
+
   const res = await fetch('https://places.googleapis.com/v1/places:searchText', {
     method: 'POST',
     headers: {
@@ -90,10 +93,12 @@ async function textSearch(query, location) {
 
   if (!res.ok) {
     const errorText = await res.text();
+    console.error('[GoogleMaps] Text Search error:', res.status, errorText);
     throw new Error(`Google Maps Text Search failed (${res.status}): ${errorText}`);
   }
 
   const data = await res.json();
+  console.log(`[GoogleMaps] Text Search returned ${(data.places || []).length} places`);
   return data.places || [];
 }
 
