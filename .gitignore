@@ -6,3 +6,4 @@ dist/
 *.log
 .vercel
 .railway
+package-lock.json
