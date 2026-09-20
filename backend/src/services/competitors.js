@@ -56,7 +56,7 @@ async function findNearby(lead, category) {
           rating,
           review_count: reviewCount,
           website,
-          google_place_id: googlePlaceId,
+          place_id: googlePlaceId,
           // Frontend / downstream compatibility aliases
           name,
           distance: distanceMeters,
