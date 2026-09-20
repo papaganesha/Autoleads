@@ -1,23 +1,70 @@
-const express = require('express');
-const router = express.Router();
-const leadsController = require('../controllers/leadsController');
+const supabase = require('../db/supabase');
+const copyGenerator = require('../services/copyGenerator');
+const { generateWhatsAppLink } = require('../utils/helpers');
 
-// Routes
-router.get('/', leadsController.listLeads);
-router.get('/:id', leadsController.getLeadById);
-router.patch('/:id/status', leadsController.updateLeadStatus);
-router.post('/:id/copy', leadsController.regenerateCopy);
-router.post('/:id/select-copy', leadsController.selectCopyVariant);
-router.get('/:id/whatsapp', leadsController.getWhatsAppLink);
+/**
+ * GET /api/leads
+ * List all leads with pagination, filtering, and scores.
+ */
+async function listLeads(req, res, next) {
+  try {
+    const {
+      temperature,
+      search_id,
+      page = '1',
+      limit = '20',
+    } = req.query;
 
-module.exports = router;
+    const pageNum = Math.max(1, parseInt(page, 10) || 1);
+    const limitNum = Math.min(100, Math.max(1, parseInt(limit, 10) || 20));
+    const offset = (pageNum - 1) * limitNum;
 
+    let query = supabase
+      .from('leads')
+      .select('*, lead_scores(*)', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(offset, offset + limitNum - 1);
+
+    if (search_id) {
+      query = query.eq('search_id', search_id);
+    }
+
+    const { data: leads, error, count } = await query;
+
+    if (error) {
+      throw new Error(`Failed to fetch leads: ${error.message}`);
+    }
+
+    let results = leads || [];
+
+    if (temperature) {
+      results = results.filter((lead) => {
+        const score = Array.isArray(lead.lead_scores)
+          ? lead.lead_scores[0]
+          : lead.lead_scores;
+        return score?.temperature === temperature;
+      });
+    }
+
+    return res.json({
+      data: results,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total: count || 0,
+        totalPages: Math.ceil((count || 0) / limitNum),
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+}
 
 /**
  * GET /api/leads/:id
- * Full lead detail with all related data.
+ * Full lead detail with related data.
  */
-router.get('/:id', async (req, res, next) => {
+async function getLeadById(req, res, next) {
   try {
     const { id } = req.params;
 
@@ -31,7 +78,6 @@ router.get('/:id', async (req, res, next) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
-    // Fetch status history separately
     const { data: statusHistory } = await supabase
       .from('lead_status_history')
       .select('*')
@@ -45,13 +91,13 @@ router.get('/:id', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
 
 /**
  * PATCH /api/leads/:id/status
- * Update a lead's status and record in history.
+ * Update a lead's status and record in status history.
  */
-router.patch('/:id/status', async (req, res, next) => {
+async function updateLeadStatus(req, res, next) {
   try {
     const { id } = req.params;
     const { status, notes } = req.body;
@@ -67,7 +113,6 @@ router.patch('/:id/status', async (req, res, next) => {
       });
     }
 
-    // Get current status for history
     const { data: currentLead } = await supabase
       .from('leads')
       .select('status')
@@ -78,41 +123,16 @@ router.patch('/:id/status', async (req, res, next) => {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
-    // Update lead status
     const { data: updated, error: updateError } = await supabase
-      .from('leads')
-      .update({ status, updated_at: new Date().toISOString() })
-      .eq('id', id)
-      .select()
-      .single();
-
-    if (updateError) {
-      throw new Error(`Failed to update status: ${updateError.message}`);
-    }
-
-    // Insert status history
-    await supabase.from('lead_status_history').insert({
-      lead_id: id,
-      previous_status: currentLead.status,
-      new_status: status,
-      notes: notes || null,
-    });
-
-    return res.json(updated);
-  } catch (err) {
-    next(err);
-  }
-});
 
 /**
  * POST /api/leads/:id/copy
  * Regenerate copy variations for a lead.
  */
-router.post('/:id/copy', async (req, res, next) => {
+async function regenerateCopy(req, res, next) {
   try {
     const { id } = req.params;
 
-    // Fetch lead with related data
     const { data: lead, error } = await supabase
       .from('leads')
       .select('*, instagram_data(*), lead_scores(*), competitors(*)')
@@ -142,15 +162,13 @@ router.post('/:id/copy', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
 
 /**
  * POST /api/leads/:id/select-copy
  * Select a copy variant for the lead.
- * Body: { copyNumber: 1-4 }
- * 1=pain_point, 2=social_proof, 3=urgency, 4=value
  */
-router.post('/:id/select-copy', async (req, res, next) => {
+async function selectCopyVariant(req, res, next) {
   try {
     const { id } = req.params;
     const { copyNumber } = req.body;
@@ -168,7 +186,6 @@ router.post('/:id/select-copy', async (req, res, next) => {
 
     const selectedField = copyMap[copyNumber];
 
-    // Update copy_variations to mark selected copy
     const { data: updated, error } = await supabase
       .from('copy_variations')
       .update({ selected_variant: selectedField })
@@ -187,17 +204,16 @@ router.post('/:id/select-copy', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
 
 /**
  * GET /api/leads/:id/whatsapp
  * Generate a WhatsApp link with the selected copy text.
  */
-router.get('/:id/whatsapp', async (req, res, next) => {
+async function getWhatsAppLink(req, res, next) {
   try {
     const { id } = req.params;
 
-    // Get lead phone
     const { data: lead, error: leadError } = await supabase
       .from('leads')
       .select('phone, name')
@@ -212,7 +228,6 @@ router.get('/:id/whatsapp', async (req, res, next) => {
       return res.status(400).json({ error: 'Lead has no phone number' });
     }
 
-    // Get selected copy
     const { data: copies, error: copyError } = await supabase
       .from('copy_variations')
       .select('*')
@@ -236,6 +251,36 @@ router.get('/:id/whatsapp', async (req, res, next) => {
   } catch (err) {
     next(err);
   }
-});
+}
 
-module.exports = router;
+module.exports = {
+  listLeads,
+  getLeadById,
+  updateLeadStatus,
+  regenerateCopy,
+  selectCopyVariant,
+  getWhatsAppLink,
+};
+
+      .from('leads')
+      .update({ status, updated_at: new Date().toISOString() })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateError) {
+      throw new Error(`Failed to update status: ${updateError.message}`);
+    }
+
+    await supabase.from('lead_status_history').insert({
+      lead_id: id,
+      previous_status: currentLead.status,
+      new_status: status,
+      notes: notes || null,
+    });
+
+    return res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+}

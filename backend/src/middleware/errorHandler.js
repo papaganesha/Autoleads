@@ -1,13 +1,11 @@
+const logger = require('../utils/logger');
+
 /**
  * Express error-handling middleware.
  * Catches all errors thrown or passed via next(err) in routes.
  */
 function errorHandler(err, req, res, _next) {
-  console.error(`[Error] ${req.method} ${req.originalUrl}:`, err.message);
-
-  if (process.env.NODE_ENV === 'development') {
-    console.error(err.stack);
-  }
+  logger.error({ err, method: req.method, url: req.originalUrl }, `[Error] ${req.method} ${req.originalUrl}: ${err.message}`);
 
   const statusCode = err.statusCode || err.status || 500;
 
@@ -20,3 +18,4 @@ function errorHandler(err, req, res, _next) {
 }
 
 module.exports = errorHandler;
+

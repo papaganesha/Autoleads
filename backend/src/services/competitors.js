@@ -4,7 +4,7 @@ const supabase = require('../db/supabase');
 /**
  * Find nearby competitors for a lead.
  * Calls Google Maps Nearby Search, filters out the lead itself,
- * calculates distances, saves results, and returns the array.
+ * calculates distances, sorts by proximity, saves results, and returns the array.
  */
 async function findNearby(lead, category) {
   if (!lead.latitude || !lead.longitude) {
@@ -19,14 +19,17 @@ async function findNearby(lead, category) {
       1000
     );
 
-    // Filter out the lead itself by place_id or by name+address match
+    const leadPlaceId = lead.place_id || lead.google_place_id;
+    const leadName = (lead.name || '').trim().toLowerCase();
+
+    // Filter out the lead itself by place_id / google_place_id or by name match
     const competitors = places
       .filter((place) => {
-        if (lead.place_id && place.id === lead.place_id) return false;
-        // Also filter by name similarity as a fallback
-        const placeName = (place.displayName?.text || '').toLowerCase();
-        const leadName = (lead.name || '').toLowerCase();
-        if (placeName === leadName) return false;
+        if (leadPlaceId && place.id === leadPlaceId) return false;
+        
+        const placeName = (place.displayName?.text || '').trim().toLowerCase();
+        if (leadName && placeName === leadName) return false;
+        
         return true;
       })
       .map((place) => {
@@ -39,33 +42,50 @@ async function findNearby(lead, category) {
           lng
         );
 
+        const distanceMeters = Math.round(distance);
+        const name = place.displayName?.text || 'Unknown';
+        const reviewCount = place.userRatingCount || 0;
+        const rating = place.rating || null;
+        const website = place.websiteUri || null;
+        const googlePlaceId = place.id;
+
         return {
           lead_id: lead.id,
-          place_id: place.id,
-          name: place.displayName?.text || 'Unknown',
+          competitor_name: name,
+          distance_meters: distanceMeters,
+          rating,
+          review_count: reviewCount,
+          website,
+          google_place_id: googlePlaceId,
+          // Frontend / downstream compatibility aliases
+          name,
+          distance: distanceMeters,
+          reviewCount,
           address: place.formattedAddress || null,
           latitude: lat,
           longitude: lng,
-          distance_meters: Math.round(distance),
-          rating: place.rating || null,
-          user_rating_count: place.userRatingCount || 0,
           phone: place.internationalPhoneNumber || null,
-          website: place.websiteUri || null,
           google_maps_url: place.googleMapsUri || null,
         };
-      });
+      })
+      .sort((a, b) => a.distance_meters - b.distance_meters);
 
-    // Save competitors to database
+    // Save competitors to database (strip non-DB alias properties if needed, or Supabase ignores extra properties)
     if (competitors.length > 0) {
-      // Delete existing competitors for this lead first, then insert fresh
+      const dbPayload = competitors.map(({ name, distance, reviewCount, address, latitude, longitude, phone, google_maps_url, ...dbRow }) => dbRow);
+
       await supabase
         .from('competitors')
         .delete()
         .eq('lead_id', lead.id);
 
-      await supabase
+      const { error: insertError } = await supabase
         .from('competitors')
-        .insert(competitors);
+        .insert(dbPayload);
+
+      if (insertError) {
+        console.error(`[Competitors] Error inserting competitors for lead ${lead.id}:`, insertError.message);
+      }
     }
 
     return competitors;
@@ -78,3 +98,4 @@ async function findNearby(lead, category) {
 module.exports = {
   findNearby,
 };
+

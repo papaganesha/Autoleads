@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
+const morgan = require('morgan');
 const config = require('./config/env');
+const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 
 const searchRoutes = require('./routes/search');
@@ -20,7 +22,7 @@ app.use(cors({
     if (!origin || allowed.includes(origin)) {
       callback(null, true);
     } else {
-      console.log(`[CORS] Blocked origin: ${origin}`);
+      logger.warn(`[CORS] Blocked origin: ${origin}`);
       callback(null, true);
     }
   },
@@ -28,11 +30,12 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Request logger
-app.use((req, res, next) => {
-  console.log(`[${new Date().toISOString()}] ${req.method} ${req.path}`);
-  next();
-});
+// Request logger with Morgan
+app.use(morgan('combined', {
+  stream: {
+    write: (message) => logger.info(message.trim()),
+  },
+}));
 
 // Health check
 app.get('/api/health', (req, res) => {
@@ -53,11 +56,12 @@ app.use(errorHandler);
 
 // Start server
 app.listen(config.port, () => {
-  console.log(`[AutoLeads] Server running on port ${config.port} (${config.nodeEnv})`);
-  console.log(`[AutoLeads] ENV check: GOOGLE_MAPS_API_KEY=${config.googleMapsApiKey ? 'SET (' + config.googleMapsApiKey.length + ' chars)' : 'MISSING'}`);
-  console.log(`[AutoLeads] ENV check: GEMINI_API_KEY=${config.geminiApiKey ? 'SET' : 'MISSING'}`);
-  console.log(`[AutoLeads] ENV check: SUPABASE_URL=${config.supabaseUrl ? 'SET' : 'MISSING'}`);
-  console.log(`[AutoLeads] ENV check: FRONTEND_URL=${config.frontendUrl}`);
+  logger.info(`[AutoLeads] Server running on port ${config.port} (${config.nodeEnv})`);
+  logger.info(`[AutoLeads] ENV check: GOOGLE_MAPS_API_KEY=${config.googleMapsApiKey ? 'SET (' + config.googleMapsApiKey.length + ' chars)' : 'MISSING'}`);
+  logger.info(`[AutoLeads] ENV check: GEMINI_API_KEY=${config.geminiApiKey ? 'SET' : 'MISSING'}`);
+  logger.info(`[AutoLeads] ENV check: SUPABASE_URL=${config.supabaseUrl ? 'SET' : 'MISSING'}`);
+  logger.info(`[AutoLeads] ENV check: FRONTEND_URL=${config.frontendUrl}`);
 });
 
 module.exports = app;
+

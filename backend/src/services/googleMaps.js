@@ -140,9 +140,51 @@ async function nearbySearch(lat, lng, category, radius = 1000) {
   return data.places || [];
 }
 
+/**
+ * Google Places Autocomplete (New API).
+ * Provides municipality and location predictions as the user types.
+ */
+async function autocompletePlaces(input) {
+  if (!input || !input.trim()) return [];
+
+  const body = {
+    input: input.trim(),
+    includedPrimaryTypes: ['locality', 'administrative_area_level_2', 'sublocality', 'neighborhood', 'political'],
+    includedRegionCodes: ['br'],
+    languageCode: 'pt-BR',
+  };
+
+  const res = await fetch('https://places.googleapis.com/v1/places:autocomplete', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Goog-Api-Key': config.googleMapsApiKey,
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    console.error('[GoogleMaps] Autocomplete error:', res.status, errorText);
+    return [];
+  }
+
+  const data = await res.json();
+  const suggestions = data.suggestions || [];
+
+  return suggestions.map((s) => ({
+    place_id: s.placePrediction?.placeId || '',
+    description: s.placePrediction?.text?.text || '',
+    main_text: s.placePrediction?.structuredFormat?.mainText?.text || '',
+    secondary_text: s.placePrediction?.structuredFormat?.secondaryText?.text || '',
+  }));
+}
+
 module.exports = {
   textSearch,
   nearbySearch,
+  autocompletePlaces,
   mapCategoryToType,
   calculateDistance,
 };
+
