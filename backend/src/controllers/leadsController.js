@@ -82,7 +82,7 @@ async function getLeadById(req, res, next) {
       .from('lead_status_history')
       .select('*')
       .eq('lead_id', id)
-      .order('created_at', { ascending: false });
+      .order('changed_at', { ascending: false });
 
     return res.json({
       ...lead,

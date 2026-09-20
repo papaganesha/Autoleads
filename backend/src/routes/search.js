@@ -20,9 +20,14 @@ router.post('/', async (req, res, next) => {
 
     console.log('[Search] POST /api/search body:', JSON.stringify(req.body));
 
+    // Validate required fields
+    if (!location) {
+      return res.status(400).json({ error: 'location is required' });
+    }
+
     // Build the query: use explicit query, or derive from category
     const searchQuery = query || category || '';
-    if (!searchQuery && !location) {
+    if (!searchQuery) {
       return res.status(400).json({ error: 'query or category is required' });
     }
 
@@ -31,8 +36,8 @@ router.post('/', async (req, res, next) => {
       .from('searches')
       .insert({
         query: searchQuery,
-        location: location || null,
-        category: category || null,
+        location,
+        category: category || searchQuery,
         status: 'processing',
         total_results: 0,
         processed_results: 0,
