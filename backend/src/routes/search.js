@@ -182,7 +182,7 @@ async function runPipeline(searchId, query, location, category) {
 
       const { data: lead, error: leadError } = await supabase
         .from('leads')
-        .upsert(leadData, { onConflict: 'place_id' })
+        .upsert(leadData, { onConflict: 'place_id' })  // Upsert on place_id UNIQUE constraint
         .select()
         .single();
 
