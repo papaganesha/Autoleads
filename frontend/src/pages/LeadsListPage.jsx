@@ -69,6 +69,20 @@ export default function LeadsListPage() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  const handleExportCSV = () => {
+    // Build query string with current filters
+    const params = new URLSearchParams();
+    if (filter !== 'all') {
+      params.append('temperature', filter);
+    }
+
+    // Trigger download
+    const url = `/api/export/csv?${params.toString()}`;
+    const link = document.createElement('a');
+    link.href = url;
+    link.click();
+  };
+
   if (loading && leads.length === 0) {
     return <LoadingSpinner message="Carregando leads..." />;
   }
@@ -92,13 +106,26 @@ export default function LeadsListPage() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-6 sm:py-8">
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
-          Meus Leads
-        </h1>
-        <p className="mt-1 text-gray-500">
-          {pagination?.total || leads.length} leads encontrados
-        </p>
+      <div className="mb-6 flex flex-col items-start justify-between gap-3 sm:flex-row sm:items-center">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900 sm:text-3xl">
+            Meus Leads
+          </h1>
+          <p className="mt-1 text-gray-500">
+            {pagination?.total || leads.length} leads encontrados
+          </p>
+        </div>
+        {leads.length > 0 && (
+          <button
+            onClick={handleExportCSV}
+            className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50"
+          >
+            <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+            </svg>
+            Exportar CSV
+          </button>
+        )}
       </div>
 
       {/* Filter tabs */}

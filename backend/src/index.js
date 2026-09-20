@@ -8,6 +8,7 @@ const errorHandler = require('./middleware/errorHandler');
 const searchRoutes = require('./routes/search');
 const leadsRoutes = require('./routes/leads');
 const notificationsRoutes = require('./routes/notifications');
+const exportRoutes = require('./routes/export');
 
 const app = express();
 
@@ -50,6 +51,7 @@ app.get('/api/health', (req, res) => {
 app.use('/api/search', searchRoutes);
 app.use('/api/leads', leadsRoutes);
 app.use('/api/notifications', notificationsRoutes);
+app.use('/api/export', exportRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
