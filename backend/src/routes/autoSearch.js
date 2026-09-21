@@ -92,6 +92,8 @@ router.post('/run', async (req, res, next) => {
             status: 'processing',
             total_results: 0,
             processed_results: 0,
+            website_filter: 'any',
+            whatsapp_filter: 'any',
           })
           .select()
           .single();
@@ -115,14 +117,17 @@ router.post('/run', async (req, res, next) => {
       for (const s of searches) {
         try {
           console.log(`[AutoSearch] Running pipeline: "${s.niche}" in "${s.city}" (search ${s.id})`);
-          await searchRouter.runPipeline(s.id, s.niche, s.city, s.niche, 10);
+          await searchRouter.runPipeline(s.id, s.niche, s.city, s.niche, 10, 'any', 'any');
           console.log(`[AutoSearch] Completed: "${s.niche}" in "${s.city}"`);
         } catch (err) {
           console.error(`[AutoSearch] Pipeline failed for "${s.niche}" in "${s.city}":`, err.message);
-          await supabase
+          const { error: updateError } = await supabase
             .from('searches')
             .update({ status: 'error' })
             .eq('id', s.id);
+          if (updateError) {
+            console.error(`[AutoSearch] Failed to update search ${s.id} status to error:`, updateError.message);
+          }
         }
       }
       console.log(`[AutoSearch] All ${searches.length} searches completed`);
