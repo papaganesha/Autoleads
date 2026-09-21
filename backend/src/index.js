@@ -13,6 +13,7 @@ const notificationsRoutes = require('./routes/notifications');
 const exportRoutes = require('./routes/export');
 const deletionRequestsRoutes = require('./routes/deletionRequests');
 const apiUsageRoutes = require('./routes/apiUsage');
+const autoSearchRoutes = require('./routes/autoSearch');
 
 const app = express();
 
@@ -58,6 +59,7 @@ app.use('/api/notifications', notificationsRoutes);
 app.use('/api/export', exportRoutes);
 app.use('/api/deletion-requests', deletionRequestsRoutes);
 app.use('/api/usage', apiUsageRoutes);
+app.use('/api/auto-search', autoSearchRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
