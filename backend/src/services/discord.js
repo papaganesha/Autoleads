@@ -5,7 +5,7 @@ const config = require('../config/env');
  */
 function generateWhatsAppLink(phone, businessName) {
   if (!phone) return null;
-  const message = encodeURIComponent(`Olá ${businessName}! 👋 Vi seu negócio e gostaria de conversar sobre oportunidades de crescimento. Podemos agendar uma chamada?`);
+  const message = encodeURIComponent(`Ola ${businessName}! Vi seu negocio e gostaria de conversar sobre oportunidades de crescimento. Podemos agendar uma chamada?`);
   return `https://wa.me/${phone.replace(/\D/g, '')}?text=${message}`;
 }
 
@@ -28,7 +28,7 @@ async function sendHotLeadNotification(lead, score, instagramData) {
   }
 
   const embed = {
-    title: `🔥 Lead Quente: ${lead.name}`,
+    title: `Lead Quente: ${lead.name}`,
     color: 0xff4500, // Orange-red
     fields: [
       {
@@ -67,26 +67,26 @@ async function sendHotLeadNotification(lead, score, instagramData) {
   if (instagramData?.handle) {
     const igLink = generateInstagramLink(instagramData.handle);
     embed.fields.push({
-      name: '📸 Instagram',
+      name: 'Instagram',
       value: `[${instagramData.handle}](${igLink}) (${instagramData.followers_count || 0} seguidores)`,
       inline: false,
     });
   } else {
     embed.fields.push({
-      name: '📸 Instagram',
-      value: 'Não encontrado',
+      name: 'Instagram',
+      value: 'Nao encontrado',
       inline: false,
     });
   }
 
   // Social presence indicators with clickable links
   const socialPresence = [];
-  if (lead.website) socialPresence.push(`🌐 [Site](${lead.website})`);
+  if (lead.website) socialPresence.push(`[Site](${lead.website})`);
   if (lead.phone) {
     const waLink = generateWhatsAppLink(lead.phone, lead.name);
-    socialPresence.push(`📱 [WhatsApp](${waLink})`);
+    socialPresence.push(`[WhatsApp](${waLink})`);
   }
-  if (lead.facebook_url) socialPresence.push(`📘 [Facebook](${lead.facebook_url})`);
+  if (lead.facebook_url) socialPresence.push(`[Facebook](${lead.facebook_url})`);
 
   if (socialPresence.length > 0) {
     embed.fields.push({

@@ -71,7 +71,7 @@ export default function SearchForm({ onSubmit, loading }) {
       <div>
         <label
           htmlFor="location"
-          className="mb-1.5 block text-sm font-medium text-gray-700"
+          className="mb-1.5 block text-sm font-medium text-gray-300"
         >
           Localizacao
         </label>
@@ -105,23 +105,23 @@ export default function SearchForm({ onSubmit, loading }) {
             onChange={(e) => setLocation(e.target.value)}
             onBlur={handleLocationBlur}
             disabled={loading}
-            className="block w-full rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-4 text-gray-900 placeholder-gray-400 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100 disabled:text-gray-500"
+            className="block w-full rounded-lg border border-surface-border bg-surface-alt py-3 pl-10 pr-4 text-gray-200 placeholder-gray-500 shadow-sm transition-colors focus:border-accent-purple/60 focus:outline-none focus:ring-1 focus:ring-accent-purple/40 disabled:bg-surface disabled:text-gray-600"
           />
           {showSuggestions && suggestions.length > 0 && (
             <div
               ref={suggestionsRef}
-              className="absolute top-full left-0 right-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-gray-200 bg-white shadow-lg"
+              className="absolute top-full left-0 right-0 z-10 mt-1 max-h-48 overflow-y-auto rounded-lg border border-surface-border bg-surface shadow-2xl shadow-black/40"
             >
               {suggestions.map((s, idx) => (
                 <button
                   key={idx}
                   type="button"
                   onClick={() => handleSelectSuggestion(s.description)}
-                  className="w-full px-4 py-2 text-left hover:bg-gray-100 transition-colors"
+                  className="w-full px-4 py-2 text-left hover:bg-white/5 transition-colors"
                 >
-                  <div className="font-medium text-gray-900">{s.main_text}</div>
+                  <div className="font-medium text-gray-200">{s.main_text}</div>
                   {s.secondary_text && (
-                    <div className="text-sm text-gray-500">{s.secondary_text}</div>
+                    <div className="text-sm text-gray-400">{s.secondary_text}</div>
                   )}
                 </button>
               ))}
@@ -134,7 +134,7 @@ export default function SearchForm({ onSubmit, loading }) {
       <div>
         <label
           htmlFor="leadLimit"
-          className="mb-1.5 block text-sm font-medium text-gray-700"
+          className="mb-1.5 block text-sm font-medium text-gray-300"
         >
           Quantidade de Leads
         </label>
@@ -159,7 +159,7 @@ export default function SearchForm({ onSubmit, loading }) {
             value={leadLimit}
             onChange={(e) => setLeadLimit(e.target.value)}
             disabled={loading}
-            className="block w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-10 text-gray-900 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100 disabled:text-gray-500"
+            className="block w-full appearance-none rounded-lg border border-surface-border bg-surface-alt py-3 pl-10 pr-10 text-gray-200 shadow-sm transition-colors focus:border-accent-purple/60 focus:outline-none focus:ring-1 focus:ring-accent-purple/40 disabled:bg-surface disabled:text-gray-600"
           >
             <option value="5">5 leads</option>
             <option value="10">10 leads</option>
@@ -183,7 +183,7 @@ export default function SearchForm({ onSubmit, loading }) {
       <div>
         <label
           htmlFor="category"
-          className="mb-1.5 block text-sm font-medium text-gray-700"
+          className="mb-1.5 block text-sm font-medium text-gray-300"
         >
           Categoria
         </label>
@@ -208,7 +208,7 @@ export default function SearchForm({ onSubmit, loading }) {
             value={category}
             onChange={(e) => setCategory(e.target.value)}
             disabled={loading}
-            className="block w-full appearance-none rounded-lg border border-gray-300 bg-white py-3 pl-10 pr-10 text-gray-900 shadow-sm transition-colors focus:border-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-200 disabled:bg-gray-100 disabled:text-gray-500"
+            className="block w-full appearance-none rounded-lg border border-surface-border bg-surface-alt py-3 pl-10 pr-10 text-gray-200 shadow-sm transition-colors focus:border-accent-purple/60 focus:outline-none focus:ring-1 focus:ring-accent-purple/40 disabled:bg-surface disabled:text-gray-600"
           >
             <option value="">Selecione uma categoria</option>
             {CATEGORIES.map((cat) => (
@@ -239,8 +239,8 @@ export default function SearchForm({ onSubmit, loading }) {
           label="🌐 Sem Site (Score Alto)"
           disabled={loading}
         />
-        <p className="text-xs text-gray-500">
-          ⚠️ Negócios sem site tem score mais alto, mas menos dados de Instagram/Facebook para descobrir
+        <p className="text-xs text-gray-400">
+          Negocios sem site tem score mais alto, mas menos dados de Instagram/Facebook para descobrir
         </p>
       </div>
 
@@ -248,7 +248,7 @@ export default function SearchForm({ onSubmit, loading }) {
       <button
         type="submit"
         disabled={!isValid || loading}
-        className="flex w-full items-center justify-center gap-2 rounded-lg bg-amber-600 px-6 py-3.5 text-base font-semibold text-white shadow-lg transition-all hover:bg-amber-700 hover:shadow-xl focus:outline-none focus:ring-2 focus:ring-amber-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+        className="flex w-full items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-accent-purple to-accent-cyan px-6 py-3.5 text-base font-semibold text-white shadow-lg shadow-accent-purple/20 transition-all hover:shadow-xl hover:shadow-accent-purple/30 focus:outline-none focus:ring-2 focus:ring-accent-purple/50 focus:ring-offset-2 focus:ring-offset-surface disabled:cursor-not-allowed disabled:opacity-50"
       >
         {loading ? (
           <>

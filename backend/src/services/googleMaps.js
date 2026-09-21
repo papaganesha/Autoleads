@@ -76,9 +76,8 @@ function calculateDistance(lat1, lng1, lat2, lng2) {
  */
 async function textSearch(query, location) {
   const body = {
-    textQuery: location ? `${query} em ${location}` : query,
+    textQuery: location ? `${query} in ${location}` : query,
     maxResultCount: 20,
-    languageCode: 'pt-BR',
   };
 
   console.log('[GoogleMaps] textSearch query:', body.textQuery);
@@ -201,7 +200,7 @@ async function autocompletePlaces(input) {
   const body = {
     input: input.trim(),
     includedPrimaryTypes: ['locality', 'administrative_area_level_2', 'sublocality', 'neighborhood', 'political'],
-    includedRegionCodes: ['br'],
+    includedRegionCodes: ['br', 'pt', 'es', 'fr', 'it', 'de', 'gb'],
     languageCode: 'pt-BR',
   };
 

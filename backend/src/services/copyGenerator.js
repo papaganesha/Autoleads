@@ -5,6 +5,38 @@ const { trackApiUsage } = require('./apiUsageTracker');
 
 const genAI = new GoogleGenerativeAI(config.geminiApiKey || '');
 
+const LANGUAGE_PATTERNS = [
+  { pattern: /portugal|lisboa|porto|faro|braga|coimbra|aveiro|leiria|funchal|algarve|sintra|evora|setubal|viseu|guarda|beja|braganca|castelo branco|portalegre|santarem|viana do castelo|vila real/i, code: 'pt-PT', name: 'Portuguese (Portugal)' },
+  { pattern: /espa[nñ]a|madrid|barcelona|sevilla|valencia|bilbao|malaga|zaragoza|murcia|palma|las palmas|granada|alicante|cordoba|valladolid|vigo|gijon|hospitalet|vitoria|santander|pamplona|toledo|badajoz|salamanca|leon|castellon|huelva|logrono|tarragona|lleida|girona|caceres|jaen|algeciras|marbella|cadiz/i, code: 'es', name: 'Spanish' },
+  { pattern: /france|paris|lyon|marseille|toulouse|nice|nantes|strasbourg|montpellier|bordeaux|lille|rennes|reims|toulon|grenoble|dijon|angers|nimes|clermont|le havre|brest|tours|amiens|limoges|perpignan/i, code: 'fr', name: 'French' },
+  { pattern: /italia|italy|roma|rome|milano|milan|napoli|torino|palermo|genova|bologna|firenze|florence|catania|venezia|venice|verona|messina|padova|trieste|brescia|parma|modena|prato|reggio|perugia|livorno|cagliari|ravenna|rimini|ferrara/i, code: 'it', name: 'Italian' },
+  { pattern: /deutschland|germany|berlin|hamburg|munchen|munich|koln|cologne|frankfurt|stuttgart|dusseldorf|dortmund|essen|leipzig|bremen|dresden|hannover|nurnberg|duisburg|bochum|wuppertal|bielefeld|bonn|mannheim/i, code: 'de', name: 'German' },
+  { pattern: /united kingdom|england|london|manchester|birmingham|leeds|glasgow|liverpool|edinburgh|bristol|cardiff|belfast|sheffield|nottingham|newcastle|southampton|leicester|brighton|aberdeen|cambridge|oxford|york|bath|exeter|coventry/i, code: 'en', name: 'English' },
+];
+
+function detectLanguage(address) {
+  if (!address) return { code: 'pt-BR', name: 'Brazilian Portuguese' };
+  for (const { pattern, code, name } of LANGUAGE_PATTERNS) {
+    if (pattern.test(address)) return { code, name };
+  }
+  return { code: 'pt-BR', name: 'Brazilian Portuguese' };
+}
+
+const FALLBACK_MESSAGES = {
+  'pt-BR': (name) => `Ola! Vi que o ${name} tem um excelente trabalho. Gostaria de conversar sobre como podemos ajudar seu negocio a crescer. Posso te contar mais?`,
+  'pt-PT': (name) => `Ola! Vi que o ${name} tem um excelente trabalho. Gostaria de conversar sobre como podemos ajudar o seu negocio a crescer. Posso contar-lhe mais?`,
+  'es': (name) => `Hola! Vi que ${name} tiene un excelente trabajo. Me gustaria hablar sobre como podemos ayudar a su negocio a crecer. Puedo contarle mas?`,
+  'fr': (name) => `Bonjour! J'ai vu que ${name} fait un excellent travail. J'aimerais discuter de la facon dont nous pouvons aider votre entreprise a se developper. Puis-je vous en dire plus?`,
+  'it': (name) => `Ciao! Ho visto che ${name} fa un ottimo lavoro. Vorrei parlare di come possiamo aiutare la vostra attivita a crescere. Posso raccontarvi di piu?`,
+  'de': (name) => `Hallo! Ich habe gesehen, dass ${name} hervorragende Arbeit leistet. Ich wurde gerne daruber sprechen, wie wir Ihrem Unternehmen beim Wachstum helfen konnen. Darf ich Ihnen mehr erzahlen?`,
+  'en': (name) => `Hello! I saw that ${name} does excellent work. I'd like to talk about how we can help your business grow. Can I tell you more?`,
+};
+
+function getFallbackMessage(name, language) {
+  const fn = FALLBACK_MESSAGES[language.code] || FALLBACK_MESSAGES['pt-BR'];
+  return fn(name);
+}
+
 /**
  * Generate 4 WhatsApp copy variations for a lead using Gemini.
  * Variations: PAIN POINT, SOCIAL PROOF, URGENCY, VALUE.
@@ -16,41 +48,43 @@ async function generateCopyVariations(lead, instagramData, competitors, score) {
     .map((c) => c.name)
     .join(', ');
 
-  const prompt = `Você é um copywriter especialista em mensagens de prospecção via WhatsApp para negócios locais no Brasil.
+  const language = detectLanguage(lead.address);
 
-Dados do lead:
-- Nome do negócio: ${lead.name}
-- Categoria: ${lead.category || 'Não informada'}
-- Endereço: ${lead.address || 'Não informado'}
-- Telefone: ${lead.phone || 'Não informado'}
-- Website: ${lead.website || 'Não possui'}
-- Nota no Google: ${lead.rating || 'N/A'} (${lead.user_rating_count || 0} avaliações)
-- Instagram: ${instagramData?.handle ? '@' + instagramData.handle : 'Não encontrado'}
-- Seguidores Instagram: ${instagramData?.followers_count || 0}
-- Posts Instagram: ${instagramData?.posts_count || 0}
-- Score do lead: ${score?.totalScore || 0}/110 (${score?.temperature || 'cold'})
-- Concorrentes próximos: ${competitors?.length || 0} (${competitorNames || 'nenhum identificado'})
+  const prompt = `You are a copywriting expert for WhatsApp prospecting messages for local businesses.
 
-Gere 4 variações de mensagem de WhatsApp em português brasileiro, cada uma com abordagem diferente:
+Lead data:
+- Business name: ${lead.name}
+- Category: ${lead.category || 'Not provided'}
+- Address: ${lead.address || 'Not provided'}
+- Phone: ${lead.phone || 'Not provided'}
+- Website: ${lead.website || 'None'}
+- Google rating: ${lead.rating || 'N/A'} (${lead.user_rating_count || 0} reviews)
+- Instagram: ${instagramData?.handle ? '@' + instagramData.handle : 'Not found'}
+- Instagram followers: ${instagramData?.followers_count || 0}
+- Instagram posts: ${instagramData?.posts_count || 0}
+- Lead score: ${score?.totalScore || 0}/110 (${score?.temperature || 'cold'})
+- Nearby competitors: ${competitors?.length || 0} (${competitorNames || 'none identified'})
 
-1. PAIN POINT - Identifique uma dor/problema que o negócio pode ter e ofereça solução
-2. SOCIAL PROOF - Use dados reais do negócio (avaliações, seguidores) como prova social
-3. URGENCY - Crie senso de urgência baseado na concorrência ou mercado
-4. VALUE - Destaque o valor e benefícios de forma direta
+Generate 4 WhatsApp message variations in ${language.name} (${language.code}), each with a different approach:
 
-Cada mensagem deve:
-- Ter no máximo 500 caracteres
-- Ser personalizada com o nome do negócio
-- Ser profissional mas amigável
-- Incluir um CTA claro
-- Não usar emojis em excesso (máximo 3 por mensagem)
+1. PAIN POINT - Identify a pain/problem the business may have and offer a solution
+2. SOCIAL PROOF - Use real business data (reviews, followers) as social proof
+3. URGENCY - Create urgency based on competition or market
+4. VALUE - Highlight value and benefits directly
 
-Responda APENAS com um JSON válido no seguinte formato, sem markdown ou texto adicional:
+Each message must:
+- Be at most 500 characters
+- Be personalized with the business name
+- Be professional but friendly
+- Include a clear CTA
+- Do NOT use any emojis at all
+
+Reply ONLY with valid JSON in the following format, no markdown or additional text:
 {
-  "pain_point": "mensagem aqui",
-  "social_proof": "mensagem aqui",
-  "urgency": "mensagem aqui",
-  "value": "mensagem aqui"
+  "pain_point": "message here",
+  "social_proof": "message here",
+  "urgency": "message here",
+  "value": "message here"
 }`;
 
   try {
@@ -79,7 +113,7 @@ Responda APENAS com um JSON válido no seguinte formato, sem markdown ou texto a
     const requiredKeys = ['pain_point', 'social_proof', 'urgency', 'value'];
     for (const key of requiredKeys) {
       if (!copies[key]) {
-        copies[key] = `Olá! Vi que o ${lead.name} tem um excelente trabalho. Gostaria de conversar sobre como podemos ajudar seu negócio a crescer ainda mais. Posso te contar mais?`;
+        copies[key] = getFallbackMessage(lead.name, language);
       }
     }
 
@@ -105,8 +139,7 @@ Responda APENAS com um JSON válido no seguinte formato, sem markdown ou texto a
   } catch (err) {
     console.error(`[CopyGenerator] Error generating copies for lead ${lead.id}:`, err.message);
 
-    // Save fallback copies
-    const fallbackCopy = `Olá! Vi que o ${lead.name} tem um excelente trabalho. Gostaria de conversar sobre como podemos ajudar seu negócio a crescer. Posso te contar mais?`;
+    const fallbackCopy = getFallbackMessage(lead.name, language);
     const fallback = {
       pain_point: fallbackCopy,
       social_proof: fallbackCopy,
