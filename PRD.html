@@ -1,0 +1,589 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AutoLeads MVP — Product Requirements Document</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --primary-dark: #1e40af;
+            --success: #16a34a;
+            --warning: #ea580c;
+            --danger: #dc2626;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-700: #374151;
+            --gray-900: #111827;
+            --text: #1f2937;
+            --border: #d1d5db;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            :root:not([data-theme="light"]) {
+                --primary: #60a5fa;
+                --primary-dark: #3b82f6;
+                --success: #4ade80;
+                --warning: #fb923c;
+                --danger: #f87171;
+                --gray-50: #0f172a;
+                --gray-100: #1e293b;
+                --gray-200: #334155;
+                --gray-700: #cbd5e1;
+                --gray-900: #f1f5f9;
+                --text: #e2e8f0;
+                --border: #475569;
+            }
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            line-height: 1.6;
+            color: var(--text);
+            background: var(--gray-50);
+            margin: 0;
+            padding: 0;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body:not([data-theme="light"]) {
+                background: #0f172a;
+            }
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        header {
+            border-bottom: 2px solid var(--border);
+            padding-bottom: 30px;
+            margin-bottom: 30px;
+        }
+
+        h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: var(--gray-900);
+        }
+
+        .meta {
+            font-size: 0.95rem;
+            color: #4b5563;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .meta {
+                color: #cbd5e1;
+            }
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            margin-top: 2rem;
+            margin-bottom: 1rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--gray-900);
+        }
+
+        h3 {
+            font-size: 1.25rem;
+            margin-top: 1.5rem;
+            margin-bottom: 0.75rem;
+            color: var(--primary);
+        }
+
+        p {
+            margin: 0.75rem 0;
+        }
+
+        ul, ol {
+            margin: 0.75rem 0;
+            padding-left: 1.5rem;
+        }
+
+        li {
+            margin: 0.5rem 0;
+        }
+
+        .card {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid var(--primary);
+            margin: 1.5rem 0;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .card {
+                background: #1e293b;
+            }
+        }
+
+        .card.success {
+            border-left-color: var(--success);
+        }
+
+        .card.warning {
+            border-left-color: var(--warning);
+        }
+
+        .badge {
+            display: inline-block;
+            padding: 4px 12px;
+            border-radius: 4px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            margin-right: 8px;
+            margin-bottom: 8px;
+        }
+
+        .badge.mvp {
+            background: #1e40af;
+            color: white;
+        }
+
+        .badge.icebox {
+            background: var(--gray-200);
+            color: var(--gray-900);
+        }
+
+        .badge.metric {
+            background: #15803d;
+            color: white;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .badge.mvp {
+                background: #1e40af;
+                color: white;
+            }
+            .badge.icebox {
+                background: #334155;
+                color: #f1f5f9;
+            }
+            .badge.metric {
+                background: #15803d;
+                color: white;
+            }
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        th {
+            background: var(--gray-100);
+            padding: 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            th {
+                background: #334155;
+            }
+        }
+
+        td {
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        tr:hover {
+            background: var(--gray-50);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            tr:hover {
+                background: #1e293b;
+            }
+        }
+
+        .highlight {
+            background: #fef08a;
+            padding: 2px 6px;
+            border-radius: 2px;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .highlight {
+                background: #422006;
+            }
+        }
+
+        .story {
+            background: var(--gray-50);
+            padding: 15px;
+            border-radius: 6px;
+            margin: 1rem 0;
+            border-left: 3px solid var(--primary);
+        }
+
+        @media (prefers-color-scheme: dark) {
+            .story {
+                background: #1e293b;
+            }
+        }
+
+        .story strong {
+            color: var(--primary);
+        }
+
+        .two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+            margin: 1.5rem 0;
+        }
+
+        @media (max-width: 768px) {
+            .two-col {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        footer {
+            margin-top: 4rem;
+            padding-top: 2rem;
+            border-top: 1px solid var(--border);
+            font-size: 0.9rem;
+            color: #4b5563;
+            text-align: center;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            footer {
+                color: #cbd5e1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>AutoLeads MVP</h1>
+            <p class="meta">Product Requirements Document | September 2026</p>
+            <p><strong>Status:</strong> MVP shipped and ready for user testing</p>
+        </header>
+
+        <h2>Problem Statement</h2>
+        <div class="card">
+            <p>Small and medium-sized businesses (SMBs) in Brazil struggle to find high-quality, enriched sales leads in their target categories and geographies. They spend hours manually searching Google Maps, scraping Instagram, researching competitors, and crafting outreach messages. This is time-consuming, error-prone, and scales poorly.</p>
+            <p><strong>AutoLeads</strong> automates lead discovery and enrichment, turning a 2-hour manual process into a 5-minute search, reducing API costs via smart deduplication, and providing sales-ready lead profiles with copy-to-contact options.</p>
+        </div>
+
+        <h2>Vision & North Star</h2>
+        <p>Enable sales and marketing teams at SMBs to discover, enrich, and contact high-potential leads in minutes, not hours. By 2027, AutoLeads should be the default lead-generation tool for category-based, location-targeted prospecting in Brazil.</p>
+
+        <div class="two-col">
+            <div class="card">
+                <h3>Customer Value</h3>
+                <ul>
+                    <li><strong>Speed:</strong> From 2 hours to 5 minutes per search</li>
+                    <li><strong>Quality:</strong> Enriched with Instagram, competitors, scoring</li>
+                    <li><strong>Cost:</strong> Dedup cache saves API spend on repeat searches</li>
+                    <li><strong>Reusability:</strong> Global "Meus Leads" list for long-term prospecting</li>
+                </ul>
+            </div>
+            <div class="card">
+                <h3>Business Metrics</h3>
+                <ul>
+                    <li><strong>Search velocity:</strong> Users complete 3+ searches/week</li>
+                    <li><strong>Lead quality:</strong> 70%+ leads actionable (have phone/website)</li>
+                    <li><strong>Dedup rate:</strong> 30%+ leads reused from cache (cost savings)</li>
+                    <li><strong>Retention:</strong> 80%+ of paying users active after 30 days</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>User Personas</h2>
+
+        <div class="card">
+            <h3>🎯 Primary: Sales Manager (SMB)</h3>
+            <p><strong>Who:</strong> Manages 2-5 sales reps, needs consistent lead pipeline, </p>
+            <p><strong>Pain:</strong> Manual lead sourcing is unpredictable; team spends 4+ hours/week googling competitors</p>
+            <p><strong>Goal:</strong> Find 50+ qualified leads per month with minimal manual work</p>
+            <p><strong>Success metric:</strong> Team closes 10%+ of exported leads within 30 days</p>
+        </div>
+
+        <div class="card">
+            <h3>💼 Secondary: Freelance Salesperson</h3>
+            <p><strong>Who:</strong> Solo seller or contractor, needs to build lists fast</p>
+            <p><strong>Pain:</strong> Limited budget for expensive tools (HubSpot, Apollo); currently manual + LinkedIn</p>
+            <p><strong>Goal:</strong> Find 20+ new leads per day to test outreach messaging</p>
+            <p><strong>Success metric:</strong> Cost per qualified lead &lt; R$10 (API spend amortized)</p>
+        </div>
+
+        <h2>MVP Scope (Shipped)</h2>
+
+        <span class="badge mvp">MVP v1.0</span>
+        <p>The MVP launches with a complete search → enrichment → export → contact workflow:</p>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Feature</th>
+                    <th>Description</th>
+                    <th>Value</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>Search with Autocomplete</strong></td>
+                    <td>Category + location with real-time suggestions, configurable result limit (5–15)</td>
+                    <td>Ease of use; prevents typos</td>
+                </tr>
+                <tr>
+                    <td><strong>Real-time Progress</strong></td>
+                    <td>SSE updates show enrichment progress as results stream in</td>
+                    <td>Transparency; users know it's working</td>
+                </tr>
+                <tr>
+                    <td><strong>Google Maps 2-Page Fetch</strong></td>
+                    <td>Pulls ~40 results, filters out duplicates before enrichment</td>
+                    <td>Better coverage; reduces redundant API calls</td>
+                </tr>
+                <tr>
+                    <td><strong>Instagram Enrichment</strong></td>
+                    <td>Scrapes handle, followers, bio to gauge social presence</td>
+                    <td>Scores high-engagement leads; find influencer partnerships</td>
+                </tr>
+                <tr>
+                    <td><strong>Competitor Finding</strong></td>
+                    <td>Nearby Search (5 km radius) to surface competitive landscape</td>
+                    <td>Context for sales pitch; identifies market saturation</td>
+                </tr>
+                <tr>
+                    <td><strong>Lead Scoring &amp; Temperature</strong></td>
+                    <td>Hot (≥70), Warm (50–69), Cold (&lt;50) based on followers, competitors, rating</td>
+                    <td>Prioritization; focus outreach on high-potential leads</td>
+                </tr>
+                <tr>
+                    <td><strong>Copy Variations (Gemini)</strong></td>
+                    <td>4 variants: pain point, social proof, urgency, value</td>
+                    <td>Sales-ready messaging; no manual drafting</td>
+                </tr>
+                <tr>
+                    <td><strong>Discord Notifications</strong></td>
+                    <td>Hot leads (score ≥70) pushed to Slack/Discord in real-time</td>
+                    <td>Team awareness; quick action on warm opportunities</td>
+                </tr>
+                <tr>
+                    <td><strong>Deduplication Cache</strong></td>
+                    <td>If lead exists in DB, skip enrichment, reuse cached data</td>
+                    <td>30%+ cost savings; instant results for repeat locations</td>
+                </tr>
+                <tr>
+                    <td><strong>Meus Leads (Global List)</strong></td>
+                    <td>Persistent, paginated list of all leads across all searches, filterable by temperature</td>
+                    <td>Long-term prospecting; build pipeline incrementally</td>
+                </tr>
+                <tr>
+                    <td><strong>Real-time Dashboard</strong></td>
+                    <td>Table view of search results with temperature filtering</td>
+                    <td>Quick review; focus on hot leads</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Key Success Metrics</h2>
+
+        <div class="two-col">
+            <div>
+                <h3>Engagement</h3>
+                <ul>
+                    <li><span class="badge metric">Searches per user/month</span> Target: 3+ (shows repeated use)</li>
+                    <li><span class="badge metric">Avg results per search</span> Target: 15+ (sufficient list)</li>
+                    <li><span class="badge metric">Dedup cache hit rate</span> Target: 25%+ (cost savings validation)</li>
+                </ul>
+            </div>
+            <div>
+                <h3>Quality</h3>
+                <ul>
+                    <li><span class="badge metric">Leads with contact info</span> Target: 70%+ (actionability)</li>
+                    <li><span class="badge metric">Hot lead percentage</span> Target: 20%+ (scoring efficacy)</li>
+                    <li><span class="badge metric">Enrichment success rate</span> Target: 95%+ (reliability)</li>
+                </ul>
+            </div>
+        </div>
+
+        <h2>User Stories (MVP)</h2>
+
+        <div class="story">
+            <strong>Story 1: Quick Search</strong><br>
+            <em>As a</em> sales manager<br>
+            <em>I want to</em> search for leads by category + location in under 30 seconds<br>
+            <em>So that</em> I can quickly assess market opportunity before team standup<br>
+            <br><strong>Acceptance:</strong> Autocomplete works, search returns results in &lt;2 min, real-time progress visible
+        </div>
+
+        <div class="story">
+            <strong>Story 2: Export & Outreach</strong><br>
+            <em>As a</em> freelance salesperson<br>
+            <em>I want to</em> export hot leads to CSV with copy-ready messaging<br>
+            <em>So that</em> I can bulk-import into my email tool and start outreach today<br>
+            <br><strong>Acceptance:</strong> CSV includes name, phone, email, Instagram handle, copy variant (v1.1 feature)
+        </div>
+
+        <div class="story">
+            <strong>Story 3: Reuse Leads</strong><br>
+            <em>As a</em> sales manager<br>
+            <em>I want to</em> see all leads I've ever found, filtered by score/temperature<br>
+            <em>So that</em> I can follow up with cold leads after they've warmed up<br>
+            <br><strong>Acceptance:</strong> Meus Leads loads 100+ leads, paginated, filters work
+        </div>
+
+        <div class="story">
+            <strong>Story 4: Team Alerting</strong><br>
+            <em>As a</em> sales manager<br>
+            <em>I want to</em> get Discord notifications when hot leads appear<br>
+            <em>So that</em> my team can jump on them immediately<br>
+            <br><strong>Acceptance:</strong> Notification includes lead name, score, Instagram handle, address
+        </div>
+
+        <h2>Out of Scope (Icebox)</h2>
+
+        <span class="badge icebox">Future</span>
+
+        <div class="card warning">
+            <p>These features are valuable but not MVP-blocking. Defer until after user testing and product-market fit validation.</p>
+            <ul>
+                <li><strong>User Accounts & Multi-User:</strong> Team login, shared workspaces, role-based access</li>
+                <li><strong>Scheduled Searches:</strong> Auto-run searches daily/weekly, results in inbox</li>
+                <li><strong>CRM Integration:</strong> Sync leads to HubSpot, Pipedrive, Salesforce; track conversions</li>
+                <li><strong>Analytics Dashboard:</strong> Search volume, conversion rates, cost per lead, ROI</li>
+                <li><strong>A/B Testing:</strong> Test copy variants, track which converts best</li>
+                <li><strong>Advanced Filters:</strong> Filter by score range, location, category (beyond temperature)</li>
+                <li><strong>Lead Detail Page:</strong> Drill into enrichment breakdown, competitors, scoring logic (v1.1)</li>
+                <li><strong>WhatsApp/Email Templates:</strong> Pre-built outreach templates (SMS, email, WhatsApp)</li>
+            </ul>
+        </div>
+
+        <h2>Technical Approach</h2>
+
+        <p><strong>Architecture:</strong> React frontend + Node.js/Express backend + Supabase PostgreSQL + external APIs (Google Maps, Instagram, Gemini, Discord)</p>
+
+        <p><strong>Data Flow:</strong> User submits search → backend fetches Google Maps results (2 pages) → for each lead: check DB cache (dedup) → if new, enrich (Instagram + scoring + copy) → emit SSE progress → return results</p>
+
+        <p><strong>Key Design Decision:</strong> Synchronous enrichment pipeline in request handler (not async job queue) to keep MVP simple; can migrate to Bull + Redis if search latency becomes issue at scale.</p>
+
+        <p><strong>Cost Optimization:</strong> Deduplication cache means 30%+ of leads cost nothing (reused from DB). Instagram scraping is free (web scrape, no API key). Google Maps + Gemini are metered; queries are filtered before enrichment to minimize waste.</p>
+
+        <h2>Success Criteria (v1.0 → v1.1)</h2>
+
+        <p>MVP ships when:</p>
+        <ul>
+            <li>✅ All 2 P0 bugs fixed (schema mismatches)</li>
+            <li>✅ Search, enrichment, and export flow works end-to-end</li>
+            <li>✅ Tested with 3+ beta users; 2+ searches each with positive feedback</li>
+            <li>✅ Dedup cache working (verified via logs)</li>
+            <li>✅ Discord notifications firing for hot leads</li>
+        </ul>
+
+        <p><strong>v1.1 (next sprint):</strong> Add lead detail page, export CSV, error recovery, advanced filters.</p>
+
+        <h2>Timeline</h2>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Milestone</th>
+                    <th>Target</th>
+                    <th>Scope</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td><strong>MVP v1.0</strong></td>
+                    <td>Done (Sept 2026)</td>
+                    <td>Search, enrichment, Meus Leads, Discord notifications</td>
+                </tr>
+                <tr>
+                    <td><strong>v1.1 (Stabilize)</strong></td>
+                    <td>+2-3 weeks</td>
+                    <td>Lead detail, error recovery, CSV export, advanced filters</td>
+                </tr>
+                <tr>
+                    <td><strong>v1.2 (Design Polish)</strong></td>
+                    <td>+1 week</td>
+                    <td>UI/UX improvements, mobile responsiveness, brand identity</td>
+                </tr>
+                <tr>
+                    <td><strong>v2.0 (User Accounts)</strong></td>
+                    <td>+4-6 weeks</td>
+                    <td>Multi-user, team workspaces, billing</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <h2>Acceptance Criteria for MVP Shipping</h2>
+
+        <div class="card success">
+            <h3>Functional</h3>
+            <ul>
+                <li>Search returns 5–15 results within 2 minutes</li>
+                <li>Enrichment (Instagram + scoring + copy) completes for 95%+ of leads</li>
+                <li>Discord notifications fire for hot leads (score ≥70)</li>
+                <li>Meus Leads displays all leads, filterable by temperature, paginated</li>
+                <li>Deduplication works: repeat locations skip enrichment, serve cached data</li>
+            </ul>
+        </div>
+
+        <div class="card success">
+            <h3>Quality</h3>
+            <ul>
+                <li>No 500 errors in backend logs (handled gracefully)</li>
+                <li>Frontend doesn't crash on large result sets (100+ leads)</li>
+                <li>All lead fields populated correctly (no null surprises)</li>
+                <li>Real-time progress updates display without lag</li>
+            </ul>
+        </div>
+
+        <div class="card success">
+            <h3>Testing</h3>
+            <ul>
+                <li>Tested with 3+ beta users; each runs 2+ searches</li>
+                <li>Manual walkthrough: search → dashboard → Meus Leads → export → contact</li>
+                <li>Verified: dedup cache hit (repeat search uses cached data), Discord notification fires</li>
+                <li>Error scenario: missing API key → graceful error message (not crash)</li>
+            </ul>
+        </div>
+
+        <h2>Definition of Done for Features</h2>
+
+        <div class="card">
+            <p><strong>For each feature moving to "Done":</strong></p>
+            <ul>
+                <li>Code merged to main branch</li>
+                <li>Deployed to Railway staging</li>
+                <li>Manual test steps documented and verified (e.g., "search for 'Dentista' in 'São Paulo' → expect 12 results in &lt;2 min")</li>
+                <li>No regressions (existing features still work)</li>
+                <li>BACKLOG.md updated with status</li>
+                <li>Known limitations / edge cases noted (if any)</li>
+            </ul>
+        </div>
+
+        <h2>Contact & Questions</h2>
+
+        <p><strong>Product Owner & Scrum Master:</strong> João (papaganesha)</p>
+        <p><strong>Feedback & Backlog:</strong> See BACKLOG.md for prioritized work items</p>
+        <p><strong>Architecture & Tech:</strong> See CLAUDE.md for tech stack, schema, and known technical debt</p>
+
+        <footer>
+            <p>AutoLeads MVP — Last updated September 2026</p>
+            <p>For questions, see CLAUDE.md (architecture), BACKLOG.md (prioritization), or reach out to João</p>
+        </footer>
+    </div>
+</body>
+</html>
