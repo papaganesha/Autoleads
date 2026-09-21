@@ -528,6 +528,5 @@ async function runPipeline(searchId, query, location, category, resultLimit = 10
   console.log(`[Pipeline] Completed search ${searchId}: ${processed}/${places.length} processed`);
 }
 
-router.runPipeline = runPipeline;
-
 module.exports = router;
+module.exports.runPipeline = runPipeline;

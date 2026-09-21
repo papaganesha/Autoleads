@@ -56,7 +56,13 @@ async function listLeads(req, res, next) {
     const { data: rows, error, count } = await query;
 
     if (error) {
-      throw new Error(`Failed to fetch leads: ${error.message}`);
+      console.error('Supabase query error:', {
+        message: error.message,
+        code: error.code,
+        details: error.details,
+        hint: error.hint,
+      });
+      throw new Error(`Failed to fetch leads: ${error.message}${error.code ? ` (${error.code})` : ''}`);
     }
 
     const results = (rows || []).map((row) => ({
