@@ -6,6 +6,7 @@ import LeadDetailPage from './pages/LeadDetailPage';
 import LeadsListPage from './pages/LeadsListPage';
 import OutreachKanbanPage from './pages/OutreachKanbanPage';
 import DeletionRequestPage from './pages/DeletionRequestPage';
+import AutoSearchPage from './pages/AutoSearchPage';
 import ApiUsagePill from './components/ApiUsagePill';
 
 function Header() {
@@ -83,6 +84,7 @@ export default function App() {
               <Route path="/leads" element={<LeadsListPage />} />
               <Route path="/outreach" element={<OutreachKanbanPage />} />
               <Route path="/solicitar-remocao" element={<DeletionRequestPage />} />
+              <Route path="/auto" element={<AutoSearchPage />} />
             </Routes>
           </main>
         </div>
