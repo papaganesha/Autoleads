@@ -24,7 +24,6 @@ CREATE TABLE leads (
   website TEXT,
   google_maps_url TEXT,
   place_id TEXT UNIQUE,
-  google_place_id TEXT,
   rating NUMERIC(2,1),
   user_rating_count INTEGER DEFAULT 0,
   status TEXT NOT NULL DEFAULT 'new',
@@ -54,7 +53,7 @@ CREATE TABLE competitors (
   rating NUMERIC(2,1),
   review_count INTEGER DEFAULT 0,
   website TEXT,
-  google_place_id TEXT
+  place_id TEXT
 );
 
 CREATE TABLE lead_scores (
@@ -91,7 +90,7 @@ CREATE TABLE lead_status_history (
 
 CREATE INDEX idx_leads_search_id ON leads(search_id);
 CREATE INDEX idx_leads_status ON leads(status);
-CREATE INDEX idx_leads_google_place_id ON leads(google_place_id);
+CREATE INDEX idx_leads_place_id ON leads(place_id);
 CREATE INDEX idx_lead_scores_temperature ON lead_scores(temperature);
 CREATE INDEX idx_lead_scores_total_score ON lead_scores(total_score DESC);
 CREATE INDEX idx_competitors_lead_id ON competitors(lead_id);
