@@ -4,6 +4,7 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
+  const MIN_INTERVAL_MINUTES = 20; // Mínimo de 20 minutos entre execuções
 
   const addTime = () => {
     const timeStr = `${selectedHour}:${selectedMinute}`;
@@ -18,17 +19,17 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
     onChange(scheduleTimes.filter(t => t !== timeStr));
   };
 
-  // Calcula se há conflito de tempo
+  // Verifica conflito: mínimo de 20 minutos entre runs
   const hasTimeConflict = () => {
     if (scheduleTimes.length <= 1) return false;
 
     const sorted = [...scheduleTimes].sort();
     for (let i = 0; i < sorted.length - 1; i++) {
-      const [hour1] = sorted[i].split(':').map(Number);
-      const [hour2] = sorted[i + 1].split(':').map(Number);
-      const minuteBetween = (hour2 - hour1) * 60;
+      const [hour1, min1] = sorted[i].split(':').map(Number);
+      const [hour2, min2] = sorted[i + 1].split(':').map(Number);
+      const minutesBetween = (hour2 - hour1) * 60 + (min2 - min1);
 
-      if (minuteBetween < estimatedRunDurationMinutes + 5) {
+      if (minutesBetween < MIN_INTERVAL_MINUTES) {
         return true;
       }
     }
@@ -68,7 +69,7 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
 
         {conflict && (
           <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400">
-            ⚠ Aviso: Horários muito próximos podem causar sobreposição de execuções (mínimo {estimatedRunDurationMinutes + 5} min entre horários)
+            ⚠ Aviso: Horários muito próximos (mínimo 20 minutos entre execuções)
           </div>
         )}
 

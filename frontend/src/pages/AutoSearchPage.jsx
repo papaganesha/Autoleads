@@ -243,6 +243,22 @@ export default function AutoSearchPage() {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!window.confirm('Limpar TODO o histórico? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    try {
+      await api.delete('/auto-search/cleanup');
+      setRuns([]);
+      setSelectedRunDetail(null);
+      setSelectedRunId(null);
+      setSuccess('Histórico limpo com sucesso!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao limpar histórico');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -511,7 +527,18 @@ export default function AutoSearchPage() {
           </div>
 
           <div className="rounded-2xl border border-surface-border bg-surface p-6 h-fit">
-            <h3 className="text-lg font-bold text-white mb-4">Histórico Recente</h3>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Histórico Recente</h3>
+              {runs.length > 0 && (
+                <button
+                  onClick={handleClearHistory}
+                  className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
+                  title="Limpar histórico"
+                >
+                  🗑️ Limpar
+                </button>
+              )}
+            </div>
             <div className="space-y-2 max-h-96 overflow-y-auto">
               {runs.length === 0 ? (
                 <p className="text-gray-400 text-sm">Nenhuma execução ainda</p>
