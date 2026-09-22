@@ -6,6 +6,7 @@ export default function AutoSearchPage() {
   const [config, setConfig] = useState(null);
   const [states, setStates] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [cities, setCities] = useState([]);
   const [runs, setRuns] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [selectedRunDetail, setSelectedRunDetail] = useState(null);
@@ -27,6 +28,15 @@ export default function AutoSearchPage() {
   useEffect(() => {
     loadData();
   }, []);
+
+  useEffect(() => {
+    // Load cities when state changes
+    if (formData?.state) {
+      loadCitiesForState(formData.state);
+    } else {
+      setCities([]);
+    }
+  }, [formData?.state]);
 
   useEffect(() => {
     // Auto-refresh runs list every 3 seconds if not watching a live run
@@ -74,6 +84,16 @@ export default function AutoSearchPage() {
       setRuns(res.data.data || []);
     } catch (err) {
       console.error('Erro ao carregar histórico:', err);
+    }
+  };
+
+  const loadCitiesForState = async (state) => {
+    try {
+      const res = await api.get(`/meta/cities?state=${state}`);
+      setCities(res.data.cities || []);
+    } catch (err) {
+      console.error('Erro ao carregar cidades:', err);
+      setCities([]);
     }
   };
 
@@ -308,6 +328,116 @@ export default function AutoSearchPage() {
                   max="16"
                   value={formData.niche_count}
                   onChange={(e) => setFormData({ ...formData, niche_count: parseInt(e.target.value) })}
+                  className="w-full"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Seleção de Cidades</label>
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setFormData({ ...formData, city_selection_mode: 'top_populous', manual_cities: [] })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.city_selection_mode === 'top_populous'
+                        ? 'border-accent-purple bg-accent-purple/20 text-accent-purple'
+                        : 'border-surface-border text-gray-400 hover:border-accent-purple'
+                    }`}
+                  >
+                    Top Populosas
+                  </button>
+                  <button
+                    onClick={() => setFormData({ ...formData, city_selection_mode: 'manual' })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.city_selection_mode === 'manual'
+                        ? 'border-accent-purple bg-accent-purple/20 text-accent-purple'
+                        : 'border-surface-border text-gray-400 hover:border-accent-purple'
+                    }`}
+                  >
+                    Manual
+                  </button>
+                </div>
+                {formData.city_selection_mode === 'manual' && cities.length > 0 && (
+                  <div className="bg-charcoal rounded-lg border border-surface-border p-3 max-h-40 overflow-y-auto">
+                    <div className="space-y-2">
+                      {cities.map((city) => (
+                        <label key={city} className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                          <input
+                            type="checkbox"
+                            checked={(formData.manual_cities || []).includes(city)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, manual_cities: [...(formData.manual_cities || []), city] });
+                              } else {
+                                setFormData({ ...formData, manual_cities: (formData.manual_cities || []).filter(c => c !== city) });
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          {city}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Seleção de Nichos</label>
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setFormData({ ...formData, niche_selection_mode: 'random', manual_niches: [] })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.niche_selection_mode === 'random'
+                        ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan'
+                        : 'border-surface-border text-gray-400 hover:border-accent-cyan'
+                    }`}
+                  >
+                    Aleatório
+                  </button>
+                  <button
+                    onClick={() => setFormData({ ...formData, niche_selection_mode: 'manual' })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.niche_selection_mode === 'manual'
+                        ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan'
+                        : 'border-surface-border text-gray-400 hover:border-accent-cyan'
+                    }`}
+                  >
+                    Manual
+                  </button>
+                </div>
+                {formData.niche_selection_mode === 'manual' && categories.length > 0 && (
+                  <div className="bg-charcoal rounded-lg border border-surface-border p-3 max-h-40 overflow-y-auto">
+                    <div className="space-y-2">
+                      {categories.map((cat) => (
+                        <label key={cat} className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                          <input
+                            type="checkbox"
+                            checked={(formData.manual_niches || []).includes(cat)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, manual_niches: [...(formData.manual_niches || []), cat] });
+                              } else {
+                                setFormData({ ...formData, manual_niches: (formData.manual_niches || []).filter(n => n !== cat) });
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          {cat}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Resultados por Busca: {formData.results_per_search}</label>
+                <input
+                  type="range"
+                  min="5"
+                  max="15"
+                  value={formData.results_per_search || 10}
+                  onChange={(e) => setFormData({ ...formData, results_per_search: parseInt(e.target.value) })}
                   className="w-full"
                 />
               </div>
