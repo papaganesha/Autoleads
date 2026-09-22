@@ -4,6 +4,7 @@ import HourlySchedulePicker from '../components/HourlySchedulePicker';
 import StatusBadge from '../components/StatusBadge';
 import ProgressIndicator from '../components/ProgressIndicator';
 import ErrorBanner from '../components/ErrorBanner';
+import ScheduleStatusPanel from '../components/ScheduleStatusPanel';
 
 export default function AutoSearchPage() {
   const [config, setConfig] = useState(null);
@@ -287,6 +288,11 @@ export default function AutoSearchPage() {
 
         {error && <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">{error}</div>}
         {success && <div className="mb-6 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-green-400">{success}</div>}
+
+        {/* Schedule Status Overview */}
+        <div className="mb-8">
+          <ScheduleStatusPanel config={config} runs={runs} />
+        </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
