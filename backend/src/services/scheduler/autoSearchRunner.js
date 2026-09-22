@@ -4,6 +4,7 @@ const { pickNiches } = require('./nichePicker');
 const { getConfig } = require('./autoSearchConfigService');
 const { runSearch } = require('../pipeline/searchOrchestrator');
 const { sleep } = require('../../utils/helpers');
+const { sendXlsxToWebhook } = require('./autoSearchExporter');
 
 async function countRunsToday() {
   const today = new Date().toISOString().split('T')[0];
@@ -155,6 +156,14 @@ async function triggerRun(triggerType = 'manual') {
   }
 
   console.log(`[AutoSearchRunner] Run ${runId} finished: ${completed}/${totalSearches} completed, ${failed} failed`);
+
+  (async () => {
+    try {
+      await sendXlsxToWebhook(runId);
+    } catch (err) {
+      console.error(`[AutoSearchRunner] Failed to send webhook for run ${runId}:`, err.message);
+    }
+  })();
 
   return { runId, completed, failed, errors };
 }
