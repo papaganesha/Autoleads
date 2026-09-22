@@ -4,6 +4,11 @@ const supabase = require('../db/supabase');
 const { getConfig, updateConfig, toggleEnabled } = require('../services/scheduler/autoSearchConfigService');
 const { triggerRun } = require('../services/scheduler/autoSearchRunner');
 const { exportRunResultsToXlsx } = require('../services/scheduler/autoSearchExporter');
+const { getRunSnapshot } = require('../services/scheduler/autoSearchRunQueries');
+const { pickCities } = require('../services/scheduler/cityPicker');
+const { pickNiches } = require('../services/scheduler/nichePicker');
+const runEvents = require('../utils/runEvents');
+const { requestStop } = require('../services/scheduler/runControl');
 
 /**
  * GET /api/auto-search/config
@@ -64,16 +69,42 @@ router.post('/resume', async (req, res, next) => {
 });
 
 /**
+ * GET /api/auto-search/preview
+ * Preview what will be run without creating a run (for confirmation modal).
+ */
+router.get('/preview', async (req, res, next) => {
+  try {
+    const config = await getConfig();
+    const cities = pickCities(config);
+    const niches = pickNiches(config);
+    const totalSearches = cities.length * niches.length;
+
+    res.json({
+      cities,
+      niches,
+      totalSearches,
+      estimatedMinutes: Math.ceil(totalSearches * 1.5),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
  * POST /api/auto-search/run
- * Manually triggers an auto-search run.
+ * Manually triggers an auto-search run (returns immediately).
  */
 router.post('/run', async (req, res, next) => {
   try {
     const result = await triggerRun('manual');
+    if (!result) {
+      return res.status(409).json({ error: 'Run could not be triggered' });
+    }
+
     res.status(201).json({
-      message: `Auto-search run started with ${result.searches.length} searches`,
+      message: `Auto-search run started with ${result.totalSearches} searches`,
       runId: result.runId,
-      totalSearches: result.searches.length,
+      totalSearches: result.totalSearches,
       cities: result.cities,
       niches: result.niches,
     });
@@ -118,30 +149,76 @@ router.get('/runs', async (req, res, next) => {
 router.get('/runs/:runId', async (req, res, next) => {
   try {
     const { runId } = req.params;
+    const snapshot = await getRunSnapshot(runId);
 
-    const { data: run, error: runError } = await supabase
-      .from('auto_search_runs')
-      .select('*')
-      .eq('id', runId)
-      .single();
-
-    if (runError || !run) {
+    if (!snapshot) {
       return res.status(404).json({ error: 'Run not found' });
     }
 
-    const { data: searches, error: searchesError } = await supabase
-      .from('searches')
-      .select('id, query, location, status, error_message, created_at')
-      .eq('auto_search_run_id', runId)
-      .order('created_at', { ascending: false });
+    res.json(snapshot);
+  } catch (err) {
+    next(err);
+  }
+});
 
-    if (searchesError) {
-      return res.status(400).json({ error: searchesError.message });
+/**
+ * GET /api/auto-search/runs/:runId/events
+ * Server-Sent Events endpoint for live run progress updates.
+ */
+router.get('/runs/:runId/events', async (req, res, next) => {
+  try {
+    const { runId } = req.params;
+
+    const snapshot = await getRunSnapshot(runId);
+    if (!snapshot) {
+      return res.status(404).json({ error: 'Run not found' });
     }
 
-    res.json({
-      run,
-      searches: searches || [],
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('Access-Control-Allow-Origin', '*');
+
+    res.write(`data: ${JSON.stringify(snapshot)}\n\n`);
+
+    const unsubscribe = runEvents.subscribe(runId, (data) => {
+      res.write(`data: ${JSON.stringify(data)}\n\n`);
+    });
+
+    req.on('close', () => {
+      unsubscribe();
+      res.end();
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/auto-search/runs/:runId/stop
+ * Requests to stop a running auto-search run.
+ */
+router.post('/runs/:runId/stop', async (req, res, next) => {
+  try {
+    const { runId } = req.params;
+
+    const { data: run, error } = await supabase
+      .from('auto_search_runs')
+      .select('id, status')
+      .eq('id', runId)
+      .single();
+
+    if (error || !run) {
+      return res.status(404).json({ error: 'Run not found' });
+    }
+
+    if (run.status !== 'running') {
+      return res.status(409).json({ error: `Cannot stop run with status: ${run.status}` });
+    }
+
+    requestStop(runId);
+    res.status(202).json({
+      message: 'Parada solicitada — finalizando a busca atual antes de parar.',
     });
   } catch (err) {
     next(err);
@@ -155,11 +232,11 @@ router.get('/runs/:runId', async (req, res, next) => {
 router.get('/runs/:runId/export', async (req, res, next) => {
   try {
     const { runId } = req.params;
-    const xlsx = await exportRunResultsToXlsx(runId);
+    const xlsxBuffer = await exportRunResultsToXlsx(runId);
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     res.setHeader('Content-Disposition', `attachment; filename="auto-search-${runId.slice(0, 8)}.xlsx"`);
-    res.send(xlsx);
+    res.send(xlsxBuffer);
   } catch (err) {
     next(err);
   }

@@ -78,6 +78,20 @@ app.listen(config.port, async () => {
   // Force schema introspection
   await refreshSchema();
 
+  // Clean up any orphaned runs left in 'running' status from previous crashes
+  const supabase = require('./db/supabase');
+  try {
+    const { error } = await supabase
+      .from('auto_search_runs')
+      .update({ status: 'interrupted' })
+      .eq('status', 'running');
+    if (!error) {
+      logger.info('[AutoLeads] Cleaned up orphaned running auto-search runs');
+    }
+  } catch (err) {
+    logger.warn('[AutoLeads] Failed to cleanup orphaned runs:', err.message);
+  }
+
   // Start LGPD deletion purge scheduler
   startPurgeScheduler();
   logger.info('[AutoLeads] LGPD deletion purge scheduler started');

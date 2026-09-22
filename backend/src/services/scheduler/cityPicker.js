@@ -1,12 +1,41 @@
 const brazilianCities = require('../../data/brazilianCities.json');
 
+const NATIONAL_TOP_CITIES = [
+  'São Paulo',
+  'Rio de Janeiro',
+  'Brasília',
+  'Salvador',
+  'Fortaleza',
+  'Belo Horizonte',
+  'Manaus',
+  'Curitiba',
+  'Recife',
+  'Porto Alegre',
+  'Goiânia',
+  'Guarulhos',
+  'Campinas',
+  'São Bernardo do Campo',
+  'Santo André',
+  'Osasco',
+  'Sorocaba',
+  'Ribeirão Preto',
+  'Santos',
+  'Piracicaba',
+  'Maceió',
+  'João Pessoa',
+  'Teresina',
+  'Natal',
+  'Aracaju',
+  'Belém',
+  'Anápolis',
+  'Maringá',
+  'Londrina',
+  'Blumenau',
+];
+
 function getTopPopulousCities(state, count) {
   if (!state) {
-    const allCities = [];
-    Object.values(brazilianCities).forEach(stateData => {
-      allCities.push(...stateData.cities);
-    });
-    return allCities.slice(0, count);
+    return NATIONAL_TOP_CITIES.slice(0, count);
   }
 
   const stateData = brazilianCities[state];

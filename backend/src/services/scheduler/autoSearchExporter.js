@@ -83,7 +83,7 @@ async function exportRunResultsToXlsx(runId) {
   worksheet.getRow(1).font = { bold: true, color: { argb: 'FFFFFFFF' } };
   worksheet.getRow(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5B21C4' } };
 
-  return workbook;
+  return await workbook.xlsx.writeBuffer();
 }
 
 async function sendXlsxToWebhook(runId, xlsxBuffer) {
