@@ -4,7 +4,7 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
-  const MIN_INTERVAL_MINUTES = 10; // Mínimo de 10 minutos entre execuções
+  const MIN_INTERVAL_MINUTES = 5; // Mínimo de 5 minutos entre execuções
 
   const addTime = () => {
     const timeStr = `${selectedHour}:${selectedMinute}`;
@@ -69,7 +69,7 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
 
         {conflict && (
           <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400">
-            ⚠ Aviso: Horários muito próximos (mínimo 10 minutos entre execuções)
+            ⚠ Aviso: Horários muito próximos (mínimo 5 minutos entre execuções)
           </div>
         )}
 
@@ -106,12 +106,14 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
                       onChange={(e) => setSelectedMinute(e.target.value)}
                       className="w-20 rounded-lg border border-surface-border bg-charcoal px-3 py-2 text-white text-sm"
                     >
-                      <option value="00">:00</option>
-                      <option value="10">:10</option>
-                      <option value="20">:20</option>
-                      <option value="30">:30</option>
-                      <option value="40">:40</option>
-                      <option value="50">:50</option>
+                      {Array.from({ length: 12 }, (_, i) => {
+                        const minute = String(i * 5).padStart(2, '0');
+                        return (
+                          <option key={minute} value={minute}>
+                            :{minute}
+                          </option>
+                        );
+                      })}
                     </select>
                     <button
                       onClick={addTime}
