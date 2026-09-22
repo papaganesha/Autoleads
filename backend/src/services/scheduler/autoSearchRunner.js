@@ -1,7 +1,7 @@
 const supabase = require('../../db/supabase');
 const { pickCities } = require('./cityPicker');
-const { pickNiches } = require('./nichePicker');
-const { getConfig } = require('./autoSearchConfigService');
+const { pickNiches, isNewDay } = require('./nichePicker');
+const { getConfig, addNichesUsedToday } = require('./autoSearchConfigService');
 const { runSearch } = require('../pipeline/searchOrchestrator');
 const { sleep } = require('../../utils/helpers');
 const { sendXlsxToWebhook } = require('./autoSearchExporter');
@@ -47,7 +47,8 @@ async function triggerRun(triggerType = 'manual') {
 
   try {
     selectedCities = pickCities(config);
-    selectedNiches = pickNiches(config);
+    const nichesUsedToday = config.niches_used_today || [];
+    selectedNiches = pickNiches(config, nichesUsedToday);
   } catch (err) {
     console.error(`[AutoSearchRunner] Failed to pick cities/niches:`, err.message);
     throw err;
@@ -198,6 +199,13 @@ async function executeRun(runId, config, selectedCities, selectedNiches) {
 
   if (updateError) {
     console.error(`[AutoSearchRunner] Failed to update run ${runId} status:`, updateError.message);
+  }
+
+  // Track niches used today (for random distribution without repeats)
+  try {
+    await addNichesUsedToday(selectedNiches);
+  } catch (err) {
+    console.error(`[AutoSearchRunner] Failed to track niches used today:`, err.message);
   }
 
   clearStop(runId);

@@ -108,6 +108,32 @@ async function updateConfig(config) {
   return await getConfig();
 }
 
+async function addNichesUsedToday(niches) {
+  const currentConfig = await getConfig();
+  const today = new Date().toISOString().split('T')[0];
+  const lastReset = currentConfig.niches_reset_at
+    ? new Date(currentConfig.niches_reset_at).toISOString().split('T')[0]
+    : null;
+
+  // If it's a new day, reset the tracking
+  const nichesUsed = today !== lastReset
+    ? niches
+    : [...(currentConfig.niches_used_today || []), ...niches];
+
+  const { error } = await supabase
+    .from('auto_search_config')
+    .update({
+      niches_used_today: nichesUsed,
+      niches_reset_at: today === lastReset ? currentConfig.niches_reset_at : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', currentConfig.id);
+
+  if (error) {
+    throw new Error(`Failed to update niches tracking: ${error.message}`);
+  }
+}
+
 async function toggleEnabled(enabled) {
   const currentConfig = await getConfig();
 
@@ -123,4 +149,4 @@ async function toggleEnabled(enabled) {
   return await getConfig();
 }
 
-module.exports = { getConfig, updateConfig, toggleEnabled, validateConfig, VALID_UFS };
+module.exports = { getConfig, updateConfig, toggleEnabled, validateConfig, VALID_UFS, addNichesUsedToday };
