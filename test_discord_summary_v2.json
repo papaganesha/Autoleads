@@ -1,0 +1,36 @@
+{
+  "username": "AutoLeads Bot",
+  "embeds": [
+    {
+      "title": "📊 Resumo de Execução",
+      "description": "**Run ID**: `a1b2c3d4e5f6`\n**Hora**: 22/09/2026 15:30:45",
+      "color": 4754666,
+      "fields": [
+        {
+          "name": "⚙️ Parâmetros da Automação",
+          "value": "**Cidades**: 5\n**Nichos**: 3\n**Resultados/Busca**: 10",
+          "inline": true
+        },
+        {
+          "name": "📈 Resultados",
+          "value": "**Leads Capturados**: 24\n**Buscas**: 15 ✅, 0 ❌",
+          "inline": true
+        },
+        {
+          "name": "🌡️ Distribuição de Temperatura",
+          "value": "🔥 Hot (≥65): 4\n🟡 Warm (40-64): 9\n❄️ Cold (<40): 11",
+          "inline": false
+        },
+        {
+          "name": "⭐ Melhores Oportunidades",
+          "value": "🔥 **Pizzaria do João** (78/100)\n🔥 **Salão de Beleza Silva** (72/100)\n🟡 **Oficina Mecânica Pedro** (58/100)",
+          "inline": false
+        }
+      ],
+      "timestamp": "2026-09-22T15:30:45Z",
+      "footer": {
+        "text": "AutoLeads MVP"
+      }
+    }
+  ]
+}

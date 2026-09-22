@@ -1,0 +1,31 @@
+{
+  "username": "AutoLeads Bot",
+  "embeds": [
+    {
+      "title": "✅ Execução 2/4",
+      "description": "15:30:45 • 24 leads",
+      "color": 43520,
+      "fields": [
+        {
+          "name": "Resultado",
+          "value": "🔥 **3** hot\n🟡 8 warm\n❄️ 13 cold",
+          "inline": true
+        },
+        {
+          "name": "Buscas",
+          "value": "✅ 15\n❌ 0",
+          "inline": true
+        },
+        {
+          "name": "🔥 Hot Leads (3)",
+          "value": "Pizzaria do João\nSalão de Beleza Silva\nOficina Mecânica Pedro",
+          "inline": false
+        }
+      ],
+      "timestamp": "2026-09-22T15:30:45Z",
+      "footer": {
+        "text": "AutoLeads"
+      }
+    }
+  ]
+}

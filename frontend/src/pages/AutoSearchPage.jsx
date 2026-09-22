@@ -43,12 +43,12 @@ export default function AutoSearchPage() {
   }, [formData?.state]);
 
   useEffect(() => {
-    // Auto-refresh runs list every 3 seconds if not watching a live run
-    if (!selectedRunDetail || selectedRunDetail.run.status !== 'running') {
-      const timer = setInterval(loadRuns, 3000);
+    // Auto-refresh runs list every 10 seconds, but only if not watching a live run
+    if (selectedRunDetail?.run?.status !== 'running') {
+      const timer = setInterval(loadRuns, 10000);
       return () => clearInterval(timer);
     }
-  }, [selectedRunDetail]);
+  }, [selectedRunDetail?.run?.status]);
 
   useEffect(() => {
     // Watch live run via SSE if it's running
@@ -107,18 +107,17 @@ export default function AutoSearchPage() {
       return false;
     }
 
-    const totalSearches = formData.city_count * formData.niche_count;
-    const estimatedMinutes = Math.ceil(totalSearches * 1.5);
+    const MIN_INTERVAL = 10; // 10 minutos mínimo entre execuções
 
-    // Verifica sobreposição de horários
+    // Verifica intervalo mínimo entre horários
     const sorted = [...formData.schedule_times].sort();
     for (let i = 0; i < sorted.length - 1; i++) {
       const [hour1, min1] = sorted[i].split(':').map(Number);
       const [hour2, min2] = sorted[i + 1].split(':').map(Number);
       const minutesBetween = (hour2 - hour1) * 60 + (min2 - min1);
 
-      if (minutesBetween < estimatedMinutes + 5) {
-        setError(`Horários muito próximos: ${sorted[i]} e ${sorted[i + 1]} têm apenas ${minutesBetween}min entre eles (necessário ~${estimatedMinutes}min)`);
+      if (minutesBetween < MIN_INTERVAL) {
+        setError(`Horários muito próximos: mínimo ${MIN_INTERVAL} minutos entre execuções`);
         return false;
       }
     }
@@ -132,7 +131,9 @@ export default function AutoSearchPage() {
     setSaving(true);
     setError(null);
     try {
-      const res = await api.put('/auto-search/config', formData);
+      await api.put('/auto-search/config', formData);
+      // Recarrega a config do servidor após salvar
+      const res = await api.get('/auto-search/config');
       setConfig(res.data);
       setFormData(res.data);
       setSuccess('Configuração salva com sucesso!');
@@ -291,31 +292,25 @@ export default function AutoSearchPage() {
 
         {/* Schedule Status Overview */}
         <div className="mb-8">
-          <ScheduleStatusPanel config={config} runs={runs} />
+          <ScheduleStatusPanel
+            config={config}
+            runs={runs}
+            selectedRunDetail={selectedRunDetail}
+            onSelectRun={(id) => {
+              if (id === 'clear') {
+                handleClearHistory();
+              } else {
+                handleLoadRunDetail(id);
+              }
+            }}
+            onTogglePause={handleTogglePause}
+            onStopRun={handleStopRun}
+            stopRequesting={stopRequesting}
+          />
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-surface-border bg-surface p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Status</h2>
-                <button
-                  onClick={handleTogglePause}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    config.is_enabled
-                      ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                      : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
-                  }`}
-                >
-                  {config.is_enabled ? '⏸ Pausar' : '▶ Retomar'}
-                </button>
-              </div>
-              <div className="space-y-2 text-sm">
-                <p className="text-gray-300">Estado: <span className={config.is_enabled ? 'text-green-400 font-semibold' : 'text-orange-400 font-semibold'}>{config.is_enabled ? 'Ativo' : 'Pausado'}</span></p>
-                <p className="text-gray-300">Execuções/dia: <span className="text-accent-cyan font-semibold">{config.max_runs_per_day}</span></p>
-              </div>
-            </div>
-
             <div className="rounded-2xl border border-surface-border bg-surface p-6 space-y-4">
               <h2 className="text-xl font-bold text-white">Configuração</h2>
 
@@ -456,18 +451,6 @@ export default function AutoSearchPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-300 mb-2">Resultados por Busca: {formData.results_per_search}</label>
-                <input
-                  type="range"
-                  min="5"
-                  max="15"
-                  value={formData.results_per_search || 10}
-                  onChange={(e) => setFormData({ ...formData, results_per_search: parseInt(e.target.value) })}
-                  className="w-full"
-                />
-              </div>
-
-              <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Limite de Execuções/Dia: {formData.max_runs_per_day}</label>
                 <input
                   type="range"
@@ -530,134 +513,6 @@ export default function AutoSearchPage() {
                 </>
               )}
             </button>
-          </div>
-
-          <div className="rounded-2xl border border-surface-border bg-surface p-6 h-fit">
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Histórico Recente</h3>
-              {runs.length > 0 && (
-                <button
-                  onClick={handleClearHistory}
-                  className="text-xs px-2 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 transition-all"
-                  title="Limpar histórico"
-                >
-                  🗑️ Limpar
-                </button>
-              )}
-            </div>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {runs.length === 0 ? (
-                <p className="text-gray-400 text-sm">Nenhuma execução ainda</p>
-              ) : (
-                runs.map((run) => (
-                  <button
-                    key={run.id}
-                    onClick={() => handleLoadRunDetail(run.id)}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${
-                      selectedRunId === run.id
-                        ? 'border-accent-purple bg-accent-purple/10'
-                        : 'border-surface-border hover:border-accent-purple'
-                    }`}
-                  >
-                    <div className="text-xs text-gray-400">{new Date(run.started_at).toLocaleString('pt-BR')}</div>
-                    <div className={`text-sm font-semibold ${
-                      run.status === 'completed' ? 'text-green-400' :
-                      run.status === 'running' ? 'text-yellow-400' :
-                      run.status === 'cancelled' ? 'text-orange-400' :
-                      run.status === 'interrupted' ? 'text-red-400' :
-                      'text-red-400'
-                    }`}>
-                      {run.status === 'completed' ? '✓ Concluído' :
-                       run.status === 'running' ? '⚙ Rodando' :
-                       run.status === 'cancelled' ? '⊘ Cancelado' :
-                       run.status === 'interrupted' ? '⚠ Interrompido' :
-                       run.status === 'completed_with_errors' ? '⚠ Com Erros' :
-                       '✕ Falhou'}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{run.searches_completed || 0}/{run.searches_total} buscas</div>
-                  </button>
-                ))
-              )}
-            </div>
-
-            {selectedRunDetail && (
-              <div className="mt-6 pt-6 border-t border-surface-border space-y-4">
-                {/* Header com Status e Ações */}
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-white text-sm mb-2">Execução em Andamento</h4>
-                    <StatusBadge status={selectedRunDetail.run.status} />
-                  </div>
-                  <div className="flex gap-2">
-                    {selectedRunDetail.run.status === 'running' && (
-                      <button
-                        onClick={handleStopRun}
-                        disabled={stopRequesting}
-                        className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-semibold transition-all disabled:opacity-60"
-                      >
-                        {stopRequesting ? '⏳ Parando...' : '⊘ Parar'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* Live Update Indicator */}
-                {selectedRunDetail.run.status === 'running' && (
-                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-2 text-yellow-400 text-sm">
-                    <span className="animate-pulse">🟡</span>
-                    <span>Recebendo atualizações ao vivo...</span>
-                  </div>
-                )}
-
-                {/* Progress */}
-                <ProgressIndicator
-                  completed={selectedRunDetail.run.searches_completed || 0}
-                  total={selectedRunDetail.run.searches_total}
-                  failed={selectedRunDetail.run.searches_failed || 0}
-                  estimatedMinutes={Math.ceil(((selectedRunDetail.run.searches_total || 1) - (selectedRunDetail.run.searches_completed || 0)) * 1.5)}
-                  isRunning={selectedRunDetail.run.status === 'running'}
-                />
-
-                {/* Configs */}
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div className="p-3 bg-charcoal rounded-lg border border-surface-border">
-                    <p className="text-gray-400 text-xs">Cidades</p>
-                    <p className="text-gray-200 font-semibold mt-1">{Array.isArray(selectedRunDetail.run.cities) ? selectedRunDetail.run.cities.length : 0}</p>
-                    <p className="text-gray-500 text-xs mt-1">{Array.isArray(selectedRunDetail.run.cities) ? selectedRunDetail.run.cities.join(', ') : 'N/A'}</p>
-                  </div>
-                  <div className="p-3 bg-charcoal rounded-lg border border-surface-border">
-                    <p className="text-gray-400 text-xs">Nichos</p>
-                    <p className="text-gray-200 font-semibold mt-1">{Array.isArray(selectedRunDetail.run.niches) ? selectedRunDetail.run.niches.length : 0}</p>
-                    <p className="text-gray-500 text-xs mt-1">{Array.isArray(selectedRunDetail.run.niches) ? selectedRunDetail.run.niches.slice(0, 2).join(', ') : 'N/A'}...</p>
-                  </div>
-                </div>
-
-                {/* Error Banner */}
-                {selectedRunDetail.run.error_message && (
-                  <ErrorBanner error={selectedRunDetail.run.error_message} />
-                )}
-
-                {/* Buscas Detalhadas */}
-                {selectedRunDetail.searches && selectedRunDetail.searches.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-gray-400 text-xs font-semibold">📋 Buscas Detalhadas ({selectedRunDetail.searches.length})</p>
-                    <div className="space-y-1 max-h-48 overflow-y-auto bg-charcoal rounded-lg border border-surface-border p-3">
-                      {selectedRunDetail.searches.map((search) => (
-                        <div key={search.id} className="flex items-start gap-2 text-xs pb-1 border-b border-surface-border/50 last:border-b-0">
-                          <span className={search.status === 'completed' ? '✓ text-green-400' : search.status === 'error' ? '✕ text-red-400' : '◯ text-gray-400'}>
-                            {search.status === 'completed' ? '✓' : search.status === 'error' ? '✕' : '◯'}
-                          </span>
-                          <div className="flex-1">
-                            <p className="text-gray-300">{search.query} <span className="text-gray-500">em {search.location}</span></p>
-                            {search.error_message && <p className="text-red-400 text-xs mt-0.5">⚠ {search.error_message}</p>}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
           </div>
         </div>
       </div>

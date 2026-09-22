@@ -6,6 +6,7 @@ const { runSearch } = require('../pipeline/searchOrchestrator');
 const { sleep } = require('../../utils/helpers');
 const { sendXlsxToWebhook } = require('./autoSearchExporter');
 const { getRunSnapshot } = require('./autoSearchRunQueries');
+const { sendRunSummary } = require('../discord');
 const runEvents = require('../../utils/runEvents');
 const { requestStop, isStopRequested, clearStop } = require('./runControl');
 
@@ -30,6 +31,17 @@ async function triggerRun(triggerType = 'manual') {
 
   if (triggerType === 'scheduled' && !config.is_enabled) {
     console.log('[AutoSearchRunner] Scheduler is disabled, skipping scheduled run');
+    return null;
+  }
+
+  // Check if there's already a run active (no more than one run at a time)
+  const { data: activeRuns, error: activeError } = await supabase
+    .from('auto_search_runs')
+    .select('id', { count: 'exact' })
+    .eq('status', 'running');
+
+  if (!activeError && activeRuns && activeRuns.length > 0) {
+    console.log('[AutoSearchRunner] A run is already active, cannot start another one');
     return null;
   }
 
@@ -213,7 +225,52 @@ async function executeRun(runId, config, selectedCities, selectedNiches) {
 
   await emitRunProgress(runId);
 
+  // Send run summary to Discord (always, even without hot leads)
   (async () => {
+    try {
+      // Get all leads from this run
+      const { data: leads } = await supabase
+        .from('leads')
+        .select('id, name, total_score, temperature, created_at')
+        .in('id', (await supabase.from('searches').select('leads:id').eq('auto_search_run_id', runId)).data?.map(s => s.leads?.id).filter(Boolean) || []);
+
+      // Count new vs known leads (new = created during this run)
+      const runStartTime = new Date(new Date().toISOString().split('T')[0]); // Start of today
+      const newLeads = (leads || []).filter(l => {
+        const leadCreatedTime = new Date(l.created_at);
+        return leadCreatedTime >= runStartTime;
+      });
+      const knownLeads = (leads || []).length - newLeads.length;
+
+      const hotLeads = (leads || []).filter(l => l.temperature === 'hot');
+      const warmLeads = (leads || []).filter(l => l.temperature === 'warm');
+      const coldLeads = (leads || []).filter(l => l.temperature === 'cold');
+      const topLeads = [...(leads || [])].sort((a, b) => (b.total_score || 0) - (a.total_score || 0)).slice(0, 5);
+
+      // Get run details for summary
+      const { data: runData } = await supabase.from('auto_search_runs').select('*').eq('id', runId).single();
+
+      await sendRunSummary(runId, {
+        totalLeads: leads?.length || 0,
+        newLeads: newLeads.length,
+        knownLeads: knownLeads,
+        hotLeads,
+        warmLeads,
+        coldLeads,
+        topLeads,
+        searchesCompleted: completed,
+        searchesFailed: failed,
+        runStartedAt: runData?.started_at,
+        runFinishedAt: runData?.finished_at,
+        todayRunNumber: todayRunCount,
+        maxRunsPerDay: config.max_runs_per_day,
+        cities: selectedCities,
+        niches: selectedNiches,
+      });
+    } catch (err) {
+      console.error(`[AutoSearchRunner] Failed to send run summary for ${runId}:`, err.message);
+    }
+
     try {
       await sendXlsxToWebhook(runId);
     } catch (err) {

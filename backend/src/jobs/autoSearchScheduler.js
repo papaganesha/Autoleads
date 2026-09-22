@@ -32,12 +32,14 @@ function startAutoSearchScheduler() {
 
       const now = new Date();
       const currentHour = String(now.getUTCHours()).padStart(2, '0');
-      const currentHourMinute = `${currentHour}:00`;
+      const currentMinute = String(now.getUTCMinutes()).padStart(2, '0');
+      const currentTime = `${currentHour}:${currentMinute}`;
 
-      const isDueNow = config.schedule_times.includes(currentHourMinute);
+      // Check if current time matches exactly
+      const isDueNow = config.schedule_times.includes(currentTime);
 
       if (!isDueNow) {
-        logger.debug(`[AutoSearchScheduler] Current time ${currentHourMinute} not in schedule`);
+        logger.debug(`[AutoSearchScheduler] Current time ${currentTime} not in schedule`);
         return;
       }
 
@@ -58,11 +60,11 @@ function startAutoSearchScheduler() {
       const runCountToday = todayRuns?.length || 0;
 
       if (runCountToday > 0) {
-        logger.info(`[AutoSearchScheduler] Already ran ${runCountToday} time(s) at ${currentHourMinute} today, skipping duplicate`);
+        logger.info(`[AutoSearchScheduler] Already ran ${runCountToday} time(s) at ${currentTime} today, skipping duplicate`);
         return;
       }
 
-      logger.info(`[AutoSearchScheduler] Time slot ${currentHourMinute} is due, triggering run`);
+      logger.info(`[AutoSearchScheduler] Time slot ${currentTime} is due, triggering run`);
       await triggerRun('scheduled');
     } catch (err) {
       logger.error('[AutoSearchScheduler] Fatal error:', err.message);

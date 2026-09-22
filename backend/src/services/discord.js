@@ -121,6 +121,93 @@ async function sendHotLeadNotification(lead, score, instagramData) {
   }
 }
 
+/**
+ * Send a run summary to Discord after execution completes.
+ * Shows stats: total leads, hot/warm/cold counts, best leads found, etc.
+ */
+async function sendRunSummary(runId, stats) {
+  if (!config.discordWebhookUrl) {
+    console.warn('[Discord] No webhook URL configured, skipping summary.');
+    return;
+  }
+
+  const { totalLeads, newLeads, knownLeads, hotLeads, warmLeads, coldLeads, topLeads, searchesCompleted, searchesFailed, runStartedAt, runFinishedAt, todayRunNumber, maxRunsPerDay, cities, niches } = stats;
+
+  const statusEmoji = hotLeads.length > 0 ? '🔥' : '✅';
+  const color = hotLeads.length > 0 ? 0xff4500 : 0x00aa00; // Orange-red for hot, green for success
+  const startTime = runStartedAt ? new Date(runStartedAt).toLocaleString('pt-BR') : 'N/A';
+
+  // Calculate duration in minutes
+  let durationMinutes = '?';
+  if (runStartedAt && runFinishedAt) {
+    const start = new Date(runStartedAt);
+    const finished = new Date(runFinishedAt);
+    durationMinutes = Math.round((finished - start) / 60000);
+  }
+
+  const embed = {
+    title: `${statusEmoji} Execução ${todayRunNumber}/${maxRunsPerDay}`,
+    description: `${startTime}`,
+    color,
+    fields: [
+      {
+        name: '📋 Execução',
+        value: `**Run**: \`${runId.slice(0, 8)}\`\n**Cidades**: ${cities?.length || 0} • **Nichos**: ${niches?.length || 0}`,
+        inline: false,
+      },
+      {
+        name: '📊 Resultados',
+        value: `**Leads**: ${totalLeads} (${newLeads} novos + ${knownLeads} conhecidos) • **Duração**: ${durationMinutes}min\n**Buscas**: ${searchesCompleted} ✅ | ${searchesFailed} ❌`,
+        inline: false,
+      },
+      {
+        name: '🌡️ Distribuição',
+        value: `🔥 **Hot** (≥65): ${hotLeads.length}\n🟡 **Warm** (40-64): ${warmLeads.length}\n❄️ **Cold** (<40): ${coldLeads.length}`,
+        inline: true,
+      },
+    ],
+    timestamp: new Date().toISOString(),
+    footer: {
+      text: 'AutoLeads MVP',
+    },
+  };
+
+  // Show top leads (hot or warm)
+  if (topLeads && topLeads.length > 0) {
+    const topList = topLeads.slice(0, 3).map(l =>
+      `${l.temperature === 'hot' ? '🔥' : '🟡'} **${l.name}** (${l.totalScore}/100)`
+    ).join('\n');
+    embed.fields.push({
+      name: '⭐ Melhores Oportunidades',
+      value: topList,
+      inline: false,
+    });
+  }
+
+  const payload = {
+    username: 'AutoLeads Bot',
+    embeds: [embed],
+  };
+
+  try {
+    const res = await fetch(config.discordWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+
+    if (!res.ok) {
+      const errorText = await res.text();
+      console.error(`[Discord] Summary webhook failed (${res.status}): ${errorText}`);
+    } else {
+      console.log(`[Discord] Run summary sent for ${runId}`);
+    }
+  } catch (err) {
+    console.error('[Discord] Error sending run summary:', err.message);
+  }
+}
+
 module.exports = {
   sendHotLeadNotification,
+  sendRunSummary,
 };

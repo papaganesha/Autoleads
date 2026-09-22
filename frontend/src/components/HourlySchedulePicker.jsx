@@ -4,7 +4,7 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedHour, setSelectedHour] = useState('08');
   const [selectedMinute, setSelectedMinute] = useState('00');
-  const MIN_INTERVAL_MINUTES = 20; // Mínimo de 20 minutos entre execuções
+  const MIN_INTERVAL_MINUTES = 10; // Mínimo de 10 minutos entre execuções
 
   const addTime = () => {
     const timeStr = `${selectedHour}:${selectedMinute}`;
@@ -69,7 +69,7 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
 
         {conflict && (
           <div className="mb-3 p-2 bg-red-500/10 border border-red-500/30 rounded text-xs text-red-400">
-            ⚠ Aviso: Horários muito próximos (mínimo 20 minutos entre execuções)
+            ⚠ Aviso: Horários muito próximos (mínimo 10 minutos entre execuções)
           </div>
         )}
 
@@ -107,9 +107,11 @@ export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsP
                       className="w-20 rounded-lg border border-surface-border bg-charcoal px-3 py-2 text-white text-sm"
                     >
                       <option value="00">:00</option>
-                      <option value="15">:15</option>
+                      <option value="10">:10</option>
+                      <option value="20">:20</option>
                       <option value="30">:30</option>
-                      <option value="45">:45</option>
+                      <option value="40">:40</option>
+                      <option value="50">:50</option>
                     </select>
                     <button
                       onClick={addTime}
