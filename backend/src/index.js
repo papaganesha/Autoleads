@@ -5,6 +5,7 @@ const config = require('./config/env');
 const logger = require('./utils/logger');
 const errorHandler = require('./middleware/errorHandler');
 const { startPurgeScheduler } = require('./jobs/purgeScheduler');
+const { startAutoSearchScheduler } = require('./jobs/autoSearchScheduler');
 const { refreshSchema } = require('./utils/schemaRefresh');
 
 const searchRoutes = require('./routes/search');
@@ -14,6 +15,7 @@ const exportRoutes = require('./routes/export');
 const deletionRequestsRoutes = require('./routes/deletionRequests');
 const apiUsageRoutes = require('./routes/apiUsage');
 const autoSearchRoutes = require('./routes/autoSearch');
+const metaRoutes = require('./routes/meta');
 
 const app = express();
 
@@ -60,6 +62,7 @@ app.use('/api/export', exportRoutes);
 app.use('/api/deletion-requests', deletionRequestsRoutes);
 app.use('/api/usage', apiUsageRoutes);
 app.use('/api/auto-search', autoSearchRoutes);
+app.use('/api/meta', metaRoutes);
 
 // Error handler (must be last)
 app.use(errorHandler);
@@ -78,6 +81,10 @@ app.listen(config.port, async () => {
   // Start LGPD deletion purge scheduler
   startPurgeScheduler();
   logger.info('[AutoLeads] LGPD deletion purge scheduler started');
+
+  // Start auto-search scheduler
+  startAutoSearchScheduler();
+  logger.info('[AutoLeads] Auto-search scheduler started');
 });
 
 module.exports = app;
