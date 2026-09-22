@@ -59,6 +59,14 @@ function Header() {
           >
             Funil de Contato
           </NavLink>
+          <NavLink
+            to="/auto"
+            className={({ isActive }) =>
+              `text-sm font-medium transition-colors ${isActive ? 'text-white' : 'text-gray-400 hover:text-white'}`
+            }
+          >
+            Auto Scheduler
+          </NavLink>
           <ApiUsagePill />
         </nav>
       </div>

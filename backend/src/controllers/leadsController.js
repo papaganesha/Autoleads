@@ -1,10 +1,8 @@
 const supabase = require('../db/supabase');
 const copyGenerator = require('../services/copyGenerator');
-const instagram = require('../services/instagram');
-const competitors = require('../services/competitors');
-const scoring = require('../services/scoring');
 const { generateWhatsAppLink } = require('../utils/helpers');
 const { logAudit } = require('../utils/auditLog');
+const { enrichLead } = require('../services/pipeline/enrichmentService');
 
 /**
  * GET /api/leads
@@ -393,7 +391,7 @@ async function getWhatsAppLink(req, res, next) {
 
 /**
  * PATCH /api/leads/:id/retry-enrichment
- * Retry enrichment for a failed lead.
+ * Retry enrichment for a failed lead using the shared enrichmentService.
  */
 async function retryEnrichment(req, res, next) {
   try {
@@ -401,7 +399,7 @@ async function retryEnrichment(req, res, next) {
 
     const { data: lead, error: leadError } = await supabase
       .from('leads')
-      .select('*, instagram_data(*), lead_scores(*), copy_variations(*), competitors(*)')
+      .select('*')
       .eq('id', id)
       .single();
 
@@ -409,40 +407,13 @@ async function retryEnrichment(req, res, next) {
       return res.status(404).json({ error: 'Lead not found' });
     }
 
-    let instagramData = null;
-    let competitorsList = [];
-    let score = null;
+    const rawWebsiteUri = lead.website || null;
+    const { enrichmentFailed, score } = await enrichLead(lead, rawWebsiteUri);
 
-    try {
-      instagramData = await instagram.scrapeInstagram(lead.id, lead.website);
-    } catch (igErr) {
-      console.error(`[Retry] Instagram scrape failed:`, igErr.message);
-    }
-
-    try {
-      competitorsList = await competitors.findNearby(lead, lead.category);
-    } catch (compErr) {
-      console.error(`[Retry] Competitors search failed:`, compErr.message);
-    }
-
-    try {
-      score = await scoring.scoreAndSave(lead.id, lead, instagramData, competitorsList);
-    } catch (scoreErr) {
-      console.error(`[Retry] Scoring failed:`, scoreErr.message);
-    }
-
-    try {
-      if (score) {
-        await copyGenerator.generateCopyVariations(lead, instagramData, competitorsList, score);
-      }
-    } catch (copyErr) {
-      console.error(`[Retry] Copy generation failed:`, copyErr.message);
-    }
-
-    if (score) {
+    if (score && !enrichmentFailed) {
       await supabase
         .from('leads')
-        .update({ status: 'new' })
+        .update({ status: 'new', error_message: null })
         .eq('id', lead.id);
     }
 
