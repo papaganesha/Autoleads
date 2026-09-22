@@ -1,6 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
 import HourlySchedulePicker from '../components/HourlySchedulePicker';
+import StatusBadge from '../components/StatusBadge';
+import ProgressIndicator from '../components/ProgressIndicator';
+import ErrorBanner from '../components/ErrorBanner';
 
 export default function AutoSearchPage() {
   const [config, setConfig] = useState(null);
@@ -545,50 +548,81 @@ export default function AutoSearchPage() {
             </div>
 
             {selectedRunDetail && (
-              <div className="mt-6 pt-6 border-t border-surface-border">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-white text-sm">Detalhes da Execução</h4>
-                  {selectedRunDetail.run.status === 'running' && (
-                    <button
-                      onClick={handleStopRun}
-                      disabled={stopRequesting}
-                      className="text-xs px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-60 transition-all"
-                    >
-                      {stopRequesting ? 'Parando...' : '⊘ Parar'}
-                    </button>
-                  )}
+              <div className="mt-6 pt-6 border-t border-surface-border space-y-4">
+                {/* Header com Status e Ações */}
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1">
+                    <h4 className="font-semibold text-white text-sm mb-2">Execução em Andamento</h4>
+                    <StatusBadge status={selectedRunDetail.run.status} />
+                  </div>
+                  <div className="flex gap-2">
+                    {selectedRunDetail.run.status === 'running' && (
+                      <button
+                        onClick={handleStopRun}
+                        disabled={stopRequesting}
+                        className="px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-lg text-sm font-semibold transition-all disabled:opacity-60"
+                      >
+                        {stopRequesting ? '⏳ Parando...' : '⊘ Parar'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
+                {/* Live Update Indicator */}
                 {selectedRunDetail.run.status === 'running' && (
-                  <div className="mb-3 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-400">
-                    📡 Recebendo atualizações ao vivo...
+                  <div className="p-3 bg-yellow-500/10 border border-yellow-500/30 rounded-lg flex items-center gap-2 text-yellow-400 text-sm">
+                    <span className="animate-pulse">🟡</span>
+                    <span>Recebendo atualizações ao vivo...</span>
                   </div>
                 )}
 
-                <div className="space-y-2 text-xs text-gray-300">
-                  <p>Cidades: {Array.isArray(selectedRunDetail.run.cities) ? selectedRunDetail.run.cities.join(', ') : 'N/A'}</p>
-                  <p>Nichos: {Array.isArray(selectedRunDetail.run.niches) ? selectedRunDetail.run.niches.join(', ') : 'N/A'}</p>
-                  <p className="font-semibold text-white mt-2">
-                    Progresso: {selectedRunDetail.run.searches_completed || 0}/{selectedRunDetail.run.searches_total}
-                  </p>
-                  <p className="text-gray-500">Falhadas: {selectedRunDetail.run.searches_failed || 0}</p>
+                {/* Progress */}
+                <ProgressIndicator
+                  completed={selectedRunDetail.run.searches_completed || 0}
+                  total={selectedRunDetail.run.searches_total}
+                  failed={selectedRunDetail.run.searches_failed || 0}
+                  estimatedMinutes={Math.ceil(((selectedRunDetail.run.searches_total || 1) - (selectedRunDetail.run.searches_completed || 0)) * 1.5)}
+                  isRunning={selectedRunDetail.run.status === 'running'}
+                />
 
-                  {selectedRunDetail.run.error_message && (
-                    <p className="mt-2 p-1 bg-red-500/10 text-red-400 rounded">{selectedRunDetail.run.error_message}</p>
-                  )}
-
-                  <p className="text-gray-500 mt-3 font-semibold text-gray-200">Buscas Detalhadas:</p>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {selectedRunDetail.searches.map((search) => (
-                      <div key={search.id} className="text-gray-400 p-1 bg-charcoal rounded text-xs">
-                        <div className={search.status === 'completed' ? 'text-green-400' : search.status === 'error' ? 'text-red-400' : 'text-gray-400'}>
-                          {search.query} - {search.location}
-                        </div>
-                        {search.error_message && <div className="text-red-400 text-xs mt-0.5">{search.error_message}</div>}
-                      </div>
-                    ))}
+                {/* Configs */}
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div className="p-3 bg-charcoal rounded-lg border border-surface-border">
+                    <p className="text-gray-400 text-xs">Cidades</p>
+                    <p className="text-gray-200 font-semibold mt-1">{Array.isArray(selectedRunDetail.run.cities) ? selectedRunDetail.run.cities.length : 0}</p>
+                    <p className="text-gray-500 text-xs mt-1">{Array.isArray(selectedRunDetail.run.cities) ? selectedRunDetail.run.cities.join(', ') : 'N/A'}</p>
+                  </div>
+                  <div className="p-3 bg-charcoal rounded-lg border border-surface-border">
+                    <p className="text-gray-400 text-xs">Nichos</p>
+                    <p className="text-gray-200 font-semibold mt-1">{Array.isArray(selectedRunDetail.run.niches) ? selectedRunDetail.run.niches.length : 0}</p>
+                    <p className="text-gray-500 text-xs mt-1">{Array.isArray(selectedRunDetail.run.niches) ? selectedRunDetail.run.niches.slice(0, 2).join(', ') : 'N/A'}...</p>
                   </div>
                 </div>
+
+                {/* Error Banner */}
+                {selectedRunDetail.run.error_message && (
+                  <ErrorBanner error={selectedRunDetail.run.error_message} />
+                )}
+
+                {/* Buscas Detalhadas */}
+                {selectedRunDetail.searches && selectedRunDetail.searches.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-gray-400 text-xs font-semibold">📋 Buscas Detalhadas ({selectedRunDetail.searches.length})</p>
+                    <div className="space-y-1 max-h-48 overflow-y-auto bg-charcoal rounded-lg border border-surface-border p-3">
+                      {selectedRunDetail.searches.map((search) => (
+                        <div key={search.id} className="flex items-start gap-2 text-xs pb-1 border-b border-surface-border/50 last:border-b-0">
+                          <span className={search.status === 'completed' ? '✓ text-green-400' : search.status === 'error' ? '✕ text-red-400' : '◯ text-gray-400'}>
+                            {search.status === 'completed' ? '✓' : search.status === 'error' ? '✕' : '◯'}
+                          </span>
+                          <div className="flex-1">
+                            <p className="text-gray-300">{search.query} <span className="text-gray-500">em {search.location}</span></p>
+                            {search.error_message && <p className="text-red-400 text-xs mt-0.5">⚠ {search.error_message}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>
