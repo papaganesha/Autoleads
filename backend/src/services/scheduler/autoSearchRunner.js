@@ -78,21 +78,29 @@ async function triggerRun(triggerType = 'manual') {
   console.log(`[AutoSearchRunner] Cities: ${selectedCities.join(', ')}`);
   console.log(`[AutoSearchRunner] Niches: ${selectedNiches.join(', ')}`);
 
+  // Execute asynchronously but log any errors
   executeRun(runId, config, selectedCities, selectedNiches).catch((err) => {
-    console.error(`[AutoSearchRunner] Run ${runId} execution failed:`, err.message);
+    console.error(`[AutoSearchRunner] Run ${runId} execution failed (CRITICAL):`, err);
+    console.error(`[AutoSearchRunner] Stack:`, err.stack);
     supabase
       .from('auto_search_runs')
-      .update({ status: 'failed', finished_at: new Date().toISOString() })
+      .update({
+        status: 'failed',
+        error_message: `Execution failed: ${err.message}`,
+        finished_at: new Date().toISOString()
+      })
       .eq('id', runId)
       .then(() => {
-        runEvents.emitUpdate(runId, { run: { status: 'failed' } });
-      });
+        runEvents.emitUpdate(runId, { run: { status: 'failed', error_message: err.message } });
+      })
+      .catch(updateErr => console.error(`[AutoSearchRunner] Failed to update failed status for ${runId}:`, updateErr));
   });
 
   return { runId, cities: selectedCities, niches: selectedNiches, totalSearches };
 }
 
 async function executeRun(runId, config, selectedCities, selectedNiches) {
+  console.log(`[AutoSearchRunner] executeRun started for run ${runId}`);
   let completed = 0;
   let failed = 0;
   const errors = [];
@@ -136,23 +144,27 @@ async function executeRun(runId, config, selectedCities, selectedNiches) {
 
         try {
           console.log(`[AutoSearchRunner] Running search ${search.id}: "${niche}" in "${city}"`);
+          const startTime = Date.now();
           await runSearch(
             search.id,
             niche,
             city,
             niche,
-            config.results_per_search,
+            config.results_per_search || 10,
             'any',
             'any'
           );
+          const duration = Date.now() - startTime;
           completed++;
-          console.log(`[AutoSearchRunner] Completed search ${search.id}`);
+          console.log(`[AutoSearchRunner] ✓ Completed search ${search.id} in ${duration}ms`);
         } catch (pipelineErr) {
-          console.error(`[AutoSearchRunner] Pipeline failed for "${niche}" in "${city}":`, pipelineErr.message);
+          console.error(`[AutoSearchRunner] ✗ Pipeline failed for "${niche}" in "${city}":`, pipelineErr.message);
+          console.error(`[AutoSearchRunner] Stack:`, pipelineErr.stack);
           await supabase
             .from('searches')
             .update({ status: 'error', error_message: pipelineErr.message })
-            .eq('id', search.id);
+            .eq('id', search.id)
+            .catch(err => console.error(`[AutoSearchRunner] Failed to update search status:`, err.message));
           failed++;
           errors.push(`Pipeline failed for ${niche} in ${city}: ${pipelineErr.message}`);
         }
