@@ -248,10 +248,11 @@ router.get('/runs/:runId/export', async (req, res, next) => {
  */
 router.delete('/cleanup', async (req, res, next) => {
   try {
+    // Delete all rows by filtering on a condition that always matches
     const { error } = await supabase
       .from('auto_search_runs')
       .delete()
-      .neq('id', ''); // Delete all rows
+      .not('id', 'is', null); // This matches all rows (no UUID is null)
 
     if (error) {
       return res.status(400).json({ error: error.message });
