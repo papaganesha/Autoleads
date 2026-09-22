@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
+import HourlySchedulePicker from '../components/HourlySchedulePicker';
 
 export default function AutoSearchPage() {
   const [config, setConfig] = useState(null);
@@ -76,7 +77,34 @@ export default function AutoSearchPage() {
     }
   };
 
+  const validateConfig = () => {
+    if (!formData.schedule_times || formData.schedule_times.length === 0) {
+      setError('Defina pelo menos um horário agendado');
+      return false;
+    }
+
+    const totalSearches = formData.city_count * formData.niche_count;
+    const estimatedMinutes = Math.ceil(totalSearches * 1.5);
+
+    // Verifica sobreposição de horários
+    const sorted = [...formData.schedule_times].sort();
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const [hour1, min1] = sorted[i].split(':').map(Number);
+      const [hour2, min2] = sorted[i + 1].split(':').map(Number);
+      const minutesBetween = (hour2 - hour1) * 60 + (min2 - min1);
+
+      if (minutesBetween < estimatedMinutes + 5) {
+        setError(`Horários muito próximos: ${sorted[i]} e ${sorted[i + 1]} têm apenas ${minutesBetween}min entre eles (necessário ~${estimatedMinutes}min)`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSaveConfig = async () => {
+    if (!validateConfig()) return;
+
     setSaving(true);
     setError(null);
     try {
@@ -295,6 +323,27 @@ export default function AutoSearchPage() {
                   className="w-full"
                 />
               </div>
+
+              {console.log('[AutoSearchPage] Renderizando HourlySchedulePicker com', formData.schedule_times)}
+              <HourlySchedulePicker
+                scheduleTimes={formData.schedule_times || []}
+                onChange={(times) => setFormData({ ...formData, schedule_times: times })}
+                maxRunsPerDay={formData.max_runs_per_day}
+                estimatedRunDurationMinutes={Math.ceil((formData.city_count * formData.niche_count) * 1.5)}
+              />
+
+              {formData.schedule_times && formData.schedule_times.length > 0 && (
+                <div className="mt-4 flex gap-3">
+                  <div className="flex-1 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                    <p className="text-xs text-purple-300">Requisições por Execução</p>
+                    <p className="text-lg font-bold text-purple-400">📊 {formData.city_count * formData.niche_count * 2}</p>
+                  </div>
+                  <div className="flex-1 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <p className="text-xs text-blue-300">Requisições por Dia</p>
+                    <p className="text-lg font-bold text-blue-400">📅 {(formData.city_count * formData.niche_count * 2) * (formData.schedule_times?.length || 0)}</p>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handleSaveConfig}
