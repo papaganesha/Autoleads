@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 
 export default function HourlySchedulePicker({ scheduleTimes, onChange, maxRunsPerDay, estimatedRunDurationMinutes = 30 }) {
-  console.log('[HourlySchedulePicker] Renderizando com scheduleTimes:', scheduleTimes);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [selectedHour, setSelectedHour] = useState('08');
+  const [selectedMinute, setSelectedMinute] = useState('00');
 
   const addTime = () => {
-    const timeStr = `${selectedHour}:00`;
+    const timeStr = `${selectedHour}:${selectedMinute}`;
     if (!scheduleTimes.includes(timeStr)) {
       const updated = [...scheduleTimes, timeStr].sort();
       onChange(updated);

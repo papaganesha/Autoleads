@@ -324,7 +324,6 @@ export default function AutoSearchPage() {
                 />
               </div>
 
-              {console.log('[AutoSearchPage] Renderizando HourlySchedulePicker com', formData.schedule_times)}
               <HourlySchedulePicker
                 scheduleTimes={formData.schedule_times || []}
                 onChange={(times) => setFormData({ ...formData, schedule_times: times })}
