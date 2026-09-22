@@ -1,139 +1,46 @@
 const express = require('express');
 const router = express.Router();
 const supabase = require('../db/supabase');
-const searchRouter = require('./search');
-const { logAudit } = require('../utils/auditLog');
-
-const CITIES = [
-  // Portugal (12)
-  'Lisboa, Portugal',
-  'Porto, Portugal',
-  'Braga, Portugal',
-  'Coimbra, Portugal',
-  'Faro, Portugal',
-  'Funchal, Portugal',
-  'Setúbal, Portugal',
-  'Aveiro, Portugal',
-  'Viseu, Portugal',
-  'Évora, Portugal',
-  'Leiria, Portugal',
-  'Guimarães, Portugal',
-  // Espanha (12)
-  'Madrid, España',
-  'Barcelona, España',
-  'Valencia, España',
-  'Sevilla, España',
-  'Zaragoza, España',
-  'Málaga, España',
-  'Bilbao, España',
-  'Murcia, España',
-  'Palma de Mallorca, España',
-  'Las Palmas, España',
-  'Alicante, España',
-  'Granada, España',
-];
-
-const NICHES = [
-  'Restaurantes',
-  'Dentistas',
-  'Academia de ginástica',
-  'Salão de beleza',
-  'Clínica veterinária',
-  'Oficina mecânica',
-  'Imobiliária',
-  'Hotel',
-  'Padaria',
-  'Clínica de estética',
-  'Advogado',
-  'Contabilidade',
-  'Pet shop',
-  'Farmácia',
-  'Ótica',
-  'Floricultura',
-];
-
-function shuffle(arr) {
-  const copy = [...arr];
-  for (let i = copy.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [copy[i], copy[j]] = [copy[j], copy[i]];
-  }
-  return copy;
-}
+const { getConfig, updateConfig, toggleEnabled } = require('../services/scheduler/autoSearchConfigService');
+const { triggerRun } = require('../services/scheduler/autoSearchRunner');
+const { exportRunResultsToXlsx } = require('../services/scheduler/autoSearchExporter');
 
 /**
- * POST /api/auto-search/run
- * Shuffle cities and niches, pick 4 of each, run 16 searches.
- * Accepts optional body: { cities: 4, niches: 4 } to override counts.
+ * GET /api/auto-search/config
+ * Returns the current scheduler configuration.
  */
-router.post('/run', async (req, res, next) => {
+router.get('/config', async (req, res, next) => {
   try {
-    const cityCount = Math.min(24, Math.max(1, parseInt(req.body?.cities, 10) || 4));
-    const nicheCount = Math.min(16, Math.max(1, parseInt(req.body?.niches, 10) || 4));
+    const config = await getConfig();
+    res.json(config);
+  } catch (err) {
+    next(err);
+  }
+});
 
-    const selectedCities = shuffle(CITIES).slice(0, cityCount);
-    const selectedNiches = shuffle(NICHES).slice(0, nicheCount);
+/**
+ * PUT /api/auto-search/config
+ * Updates the scheduler configuration.
+ */
+router.put('/config', async (req, res, next) => {
+  try {
+    const updated = await updateConfig(req.body);
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
 
-    const totalSearches = selectedCities.length * selectedNiches.length;
-    console.log(`[AutoSearch] Starting ${totalSearches} searches: ${cityCount} cities × ${nicheCount} niches`);
-    console.log(`[AutoSearch] Cities: ${selectedCities.join(', ')}`);
-    console.log(`[AutoSearch] Niches: ${selectedNiches.join(', ')}`);
-
-    const searches = [];
-
-    for (const city of selectedCities) {
-      for (const niche of selectedNiches) {
-        const { data: search, error } = await supabase
-          .from('searches')
-          .insert({
-            query: niche,
-            location: city,
-            category: niche,
-            status: 'processing',
-            total_results: 0,
-            processed_results: 0,
-          })
-          .select()
-          .single();
-
-        if (error) {
-          console.error(`[AutoSearch] Failed to create search for "${niche}" in "${city}": ${error.message}`);
-          continue;
-        }
-
-        searches.push({
-          id: search.id,
-          city,
-          niche,
-          status: 'queued',
-        });
-      }
-    }
-
-    // Run all pipelines in background (sequentially to avoid rate limits)
-    (async () => {
-      for (const s of searches) {
-        try {
-          console.log(`[AutoSearch] Running pipeline: "${s.niche}" in "${s.city}" (search ${s.id})`);
-          await searchRouter.runPipeline(s.id, s.niche, s.city, s.niche, 10);
-          console.log(`[AutoSearch] Completed: "${s.niche}" in "${s.city}"`);
-        } catch (err) {
-          console.error(`[AutoSearch] Pipeline failed for "${s.niche}" in "${s.city}":`, err.message);
-          await supabase
-            .from('searches')
-            .update({ status: 'error' })
-            .eq('id', s.id);
-        }
-      }
-      console.log(`[AutoSearch] All ${searches.length} searches completed`);
-    })();
-
-    return res.status(201).json({
-      message: `${searches.length} searches started`,
-      totalSearches: searches.length,
-      cities: selectedCities,
-      niches: selectedNiches,
-      searches,
+/**
+ * POST /api/auto-search/pause
+ * Disables the scheduler.
+ */
+router.post('/pause', async (req, res, next) => {
+  try {
+    const config = await toggleEnabled(false);
+    res.json({
+      message: 'Scheduler paused',
+      ...config,
     });
   } catch (err) {
     next(err);
@@ -141,11 +48,121 @@ router.post('/run', async (req, res, next) => {
 });
 
 /**
- * GET /api/auto-search/config
- * Returns the available cities and niches lists.
+ * POST /api/auto-search/resume
+ * Enables the scheduler.
  */
-router.get('/config', (req, res) => {
-  res.json({ cities: CITIES, niches: NICHES });
+router.post('/resume', async (req, res, next) => {
+  try {
+    const config = await toggleEnabled(true);
+    res.json({
+      message: 'Scheduler resumed',
+      ...config,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * POST /api/auto-search/run
+ * Manually triggers an auto-search run.
+ */
+router.post('/run', async (req, res, next) => {
+  try {
+    const result = await triggerRun('manual');
+    res.status(201).json({
+      message: `Auto-search run started with ${result.searches.length} searches`,
+      runId: result.runId,
+      totalSearches: result.searches.length,
+      cities: result.cities,
+      niches: result.niches,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/auto-search/runs
+ * Retrieves paginated list of auto-search runs.
+ */
+router.get('/runs', async (req, res, next) => {
+  try {
+    const limit = Math.min(100, Math.max(1, parseInt(req.query.limit, 10) || 10));
+    const offset = Math.max(0, parseInt(req.query.offset, 10) || 0);
+
+    const { data: runs, error } = await supabase
+      .from('auto_search_runs')
+      .select('id, trigger_type, status, cities, niches, searches_total, searches_completed, searches_failed, started_at, finished_at')
+      .order('started_at', { ascending: false })
+      .range(offset, offset + limit - 1);
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({
+      data: runs || [],
+      limit,
+      offset,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/auto-search/runs/:runId
+ * Retrieves detailed info about a specific run with its searches.
+ */
+router.get('/runs/:runId', async (req, res, next) => {
+  try {
+    const { runId } = req.params;
+
+    const { data: run, error: runError } = await supabase
+      .from('auto_search_runs')
+      .select('*')
+      .eq('id', runId)
+      .single();
+
+    if (runError || !run) {
+      return res.status(404).json({ error: 'Run not found' });
+    }
+
+    const { data: searches, error: searchesError } = await supabase
+      .from('searches')
+      .select('id, query, location, status, error_message, created_at')
+      .eq('auto_search_run_id', runId)
+      .order('created_at', { ascending: false });
+
+    if (searchesError) {
+      return res.status(400).json({ error: searchesError.message });
+    }
+
+    res.json({
+      run,
+      searches: searches || [],
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+/**
+ * GET /api/auto-search/runs/:runId/export
+ * Downloads the XLSX export for a specific run.
+ */
+router.get('/runs/:runId/export', async (req, res, next) => {
+  try {
+    const { runId } = req.params;
+    const xlsx = await exportRunResultsToXlsx(runId);
+
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+    res.setHeader('Content-Disposition', `attachment; filename="auto-search-${runId.slice(0, 8)}.xlsx"`);
+    res.send(xlsx);
+  } catch (err) {
+    next(err);
+  }
 });
 
 module.exports = router;
