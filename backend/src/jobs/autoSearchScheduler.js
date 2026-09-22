@@ -31,8 +31,8 @@ function startAutoSearchScheduler() {
       }
 
       const now = new Date();
-      const currentHour = String(now.getUTCHours()).padStart(2, '0');
-      const currentMinute = String(now.getUTCMinutes()).padStart(2, '0');
+      const currentHour = String(now.getHours()).padStart(2, '0');
+      const currentMinute = String(now.getMinutes()).padStart(2, '0');
       const currentTime = `${currentHour}:${currentMinute}`;
 
       // Check if current time matches exactly
