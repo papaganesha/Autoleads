@@ -38,8 +38,8 @@ app.use(cors({
 }));
 app.use(express.json());
 
-// Request logger with Morgan
-app.use(morgan('combined', {
+// Request logger with Morgan (skip User-Agent to reduce noise)
+app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :url HTTP/:http-version" :status :res[content-length]', {
   stream: {
     write: (message) => logger.info(message.trim()),
   },

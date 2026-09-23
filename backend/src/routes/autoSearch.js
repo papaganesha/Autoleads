@@ -242,4 +242,26 @@ router.get('/runs/:runId/export', async (req, res, next) => {
   }
 });
 
+/**
+ * DELETE /api/auto-search/cleanup
+ * Clears all auto-search run history (for clean slate).
+ */
+router.delete('/cleanup', async (req, res, next) => {
+  try {
+    // Delete all rows by filtering on a condition that always matches
+    const { error } = await supabase
+      .from('auto_search_runs')
+      .delete()
+      .not('id', 'is', null); // This matches all rows (no UUID is null)
+
+    if (error) {
+      return res.status(400).json({ error: error.message });
+    }
+
+    res.json({ message: 'Auto-search history cleared successfully' });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;

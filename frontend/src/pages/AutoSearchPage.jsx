@@ -1,10 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api/client';
+import HourlySchedulePicker from '../components/HourlySchedulePicker';
+import StatusBadge from '../components/StatusBadge';
+import ProgressIndicator from '../components/ProgressIndicator';
+import ErrorBanner from '../components/ErrorBanner';
+import ScheduleStatusPanel from '../components/ScheduleStatusPanel';
 
 export default function AutoSearchPage() {
   const [config, setConfig] = useState(null);
   const [states, setStates] = useState([]);
   const [categories, setCategories] = useState([]);
+  const [cities, setCities] = useState([]);
   const [runs, setRuns] = useState([]);
   const [selectedRunId, setSelectedRunId] = useState(null);
   const [selectedRunDetail, setSelectedRunDetail] = useState(null);
@@ -28,12 +34,21 @@ export default function AutoSearchPage() {
   }, []);
 
   useEffect(() => {
-    // Auto-refresh runs list every 3 seconds if not watching a live run
-    if (!selectedRunDetail || selectedRunDetail.run.status !== 'running') {
-      const timer = setInterval(loadRuns, 3000);
+    // Load cities when state changes
+    if (formData?.state) {
+      loadCitiesForState(formData.state);
+    } else {
+      setCities([]);
+    }
+  }, [formData?.state]);
+
+  useEffect(() => {
+    // Auto-refresh runs list every 10 seconds, but only if not watching a live run
+    if (selectedRunDetail?.run?.status !== 'running') {
+      const timer = setInterval(loadRuns, 10000);
       return () => clearInterval(timer);
     }
-  }, [selectedRunDetail]);
+  }, [selectedRunDetail?.run?.status]);
 
   useEffect(() => {
     // Watch live run via SSE if it's running
@@ -76,11 +91,49 @@ export default function AutoSearchPage() {
     }
   };
 
+  const loadCitiesForState = async (state) => {
+    try {
+      const res = await api.get(`/meta/cities?state=${state}`);
+      setCities(res.data.cities || []);
+    } catch (err) {
+      console.error('Erro ao carregar cidades:', err);
+      setCities([]);
+    }
+  };
+
+  const validateConfig = () => {
+    if (!formData.schedule_times || formData.schedule_times.length === 0) {
+      setError('Defina pelo menos um horário agendado');
+      return false;
+    }
+
+    const MIN_INTERVAL = 10; // 10 minutos mínimo entre execuções
+
+    // Verifica intervalo mínimo entre horários
+    const sorted = [...formData.schedule_times].sort();
+    for (let i = 0; i < sorted.length - 1; i++) {
+      const [hour1, min1] = sorted[i].split(':').map(Number);
+      const [hour2, min2] = sorted[i + 1].split(':').map(Number);
+      const minutesBetween = (hour2 - hour1) * 60 + (min2 - min1);
+
+      if (minutesBetween < MIN_INTERVAL) {
+        setError(`Horários muito próximos: mínimo ${MIN_INTERVAL} minutos entre execuções`);
+        return false;
+      }
+    }
+
+    return true;
+  };
+
   const handleSaveConfig = async () => {
+    if (!validateConfig()) return;
+
     setSaving(true);
     setError(null);
     try {
-      const res = await api.put('/auto-search/config', formData);
+      await api.put('/auto-search/config', formData);
+      // Recarrega a config do servidor após salvar
+      const res = await api.get('/auto-search/config');
       setConfig(res.data);
       setFormData(res.data);
       setSuccess('Configuração salva com sucesso!');
@@ -192,6 +245,22 @@ export default function AutoSearchPage() {
     }
   };
 
+  const handleClearHistory = async () => {
+    if (!window.confirm('Limpar TODO o histórico? Esta ação não pode ser desfeita.')) {
+      return;
+    }
+    try {
+      await api.delete('/auto-search/cleanup');
+      setRuns([]);
+      setSelectedRunDetail(null);
+      setSelectedRunId(null);
+      setSuccess('Histórico limpo com sucesso!');
+      setTimeout(() => setSuccess(null), 3000);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Erro ao limpar histórico');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -221,28 +290,27 @@ export default function AutoSearchPage() {
         {error && <div className="mb-6 rounded-lg border border-red-500/30 bg-red-500/10 p-4 text-red-400">{error}</div>}
         {success && <div className="mb-6 rounded-lg border border-green-500/30 bg-green-500/10 p-4 text-green-400">{success}</div>}
 
+        {/* Schedule Status Overview */}
+        <div className="mb-8">
+          <ScheduleStatusPanel
+            config={config}
+            runs={runs}
+            selectedRunDetail={selectedRunDetail}
+            onSelectRun={(id) => {
+              if (id === 'clear') {
+                handleClearHistory();
+              } else {
+                handleLoadRunDetail(id);
+              }
+            }}
+            onTogglePause={handleTogglePause}
+            onStopRun={handleStopRun}
+            stopRequesting={stopRequesting}
+          />
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           <div className="lg:col-span-2 space-y-6">
-            <div className="rounded-2xl border border-surface-border bg-surface p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-xl font-bold text-white">Status</h2>
-                <button
-                  onClick={handleTogglePause}
-                  className={`px-4 py-2 rounded-lg font-semibold transition-all ${
-                    config.is_enabled
-                      ? 'bg-green-500/20 text-green-400 hover:bg-green-500/30'
-                      : 'bg-orange-500/20 text-orange-400 hover:bg-orange-500/30'
-                  }`}
-                >
-                  {config.is_enabled ? '⏸ Pausar' : '▶ Retomar'}
-                </button>
-              </div>
-              <div className="space-y-2 text-sm">
-                <p className="text-gray-300">Estado: <span className={config.is_enabled ? 'text-green-400 font-semibold' : 'text-orange-400 font-semibold'}>{config.is_enabled ? 'Ativo' : 'Pausado'}</span></p>
-                <p className="text-gray-300">Execuções/dia: <span className="text-accent-cyan font-semibold">{config.max_runs_per_day}</span></p>
-              </div>
-            </div>
-
             <div className="rounded-2xl border border-surface-border bg-surface p-6 space-y-4">
               <h2 className="text-xl font-bold text-white">Configuração</h2>
 
@@ -285,6 +353,104 @@ export default function AutoSearchPage() {
               </div>
 
               <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Seleção de Cidades</label>
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setFormData({ ...formData, city_selection_mode: 'top_populous', manual_cities: [] })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.city_selection_mode === 'top_populous'
+                        ? 'border-accent-purple bg-accent-purple/20 text-accent-purple'
+                        : 'border-surface-border text-gray-400 hover:border-accent-purple'
+                    }`}
+                  >
+                    Top Populosas
+                  </button>
+                  <button
+                    onClick={() => setFormData({ ...formData, city_selection_mode: 'manual' })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.city_selection_mode === 'manual'
+                        ? 'border-accent-purple bg-accent-purple/20 text-accent-purple'
+                        : 'border-surface-border text-gray-400 hover:border-accent-purple'
+                    }`}
+                  >
+                    Manual
+                  </button>
+                </div>
+                {formData.city_selection_mode === 'manual' && cities.length > 0 && (
+                  <div className="bg-charcoal rounded-lg border border-surface-border p-3 max-h-40 overflow-y-auto">
+                    <div className="space-y-2">
+                      {cities.map((city) => (
+                        <label key={city} className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                          <input
+                            type="checkbox"
+                            checked={(formData.manual_cities || []).includes(city)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, manual_cities: [...(formData.manual_cities || []), city] });
+                              } else {
+                                setFormData({ ...formData, manual_cities: (formData.manual_cities || []).filter(c => c !== city) });
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          {city}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Seleção de Nichos</label>
+                <div className="flex gap-2 mb-3">
+                  <button
+                    onClick={() => setFormData({ ...formData, niche_selection_mode: 'random', manual_niches: [] })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.niche_selection_mode === 'random'
+                        ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan'
+                        : 'border-surface-border text-gray-400 hover:border-accent-cyan'
+                    }`}
+                  >
+                    Aleatório
+                  </button>
+                  <button
+                    onClick={() => setFormData({ ...formData, niche_selection_mode: 'manual' })}
+                    className={`flex-1 px-3 py-2 rounded-lg border text-sm font-medium transition-all ${
+                      formData.niche_selection_mode === 'manual'
+                        ? 'border-accent-cyan bg-accent-cyan/20 text-accent-cyan'
+                        : 'border-surface-border text-gray-400 hover:border-accent-cyan'
+                    }`}
+                  >
+                    Manual
+                  </button>
+                </div>
+                {formData.niche_selection_mode === 'manual' && categories.length > 0 && (
+                  <div className="bg-charcoal rounded-lg border border-surface-border p-3 max-h-40 overflow-y-auto">
+                    <div className="space-y-2">
+                      {categories.map((cat) => (
+                        <label key={cat} className="flex items-center gap-2 text-sm text-gray-300 cursor-pointer hover:text-white">
+                          <input
+                            type="checkbox"
+                            checked={(formData.manual_niches || []).includes(cat)}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setFormData({ ...formData, manual_niches: [...(formData.manual_niches || []), cat] });
+                              } else {
+                                setFormData({ ...formData, manual_niches: (formData.manual_niches || []).filter(n => n !== cat) });
+                              }
+                            }}
+                            className="rounded"
+                          />
+                          {cat}
+                        </label>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Limite de Execuções/Dia: {formData.max_runs_per_day}</label>
                 <input
                   type="range"
@@ -295,6 +461,26 @@ export default function AutoSearchPage() {
                   className="w-full"
                 />
               </div>
+
+              <HourlySchedulePicker
+                scheduleTimes={formData.schedule_times || []}
+                onChange={(times) => setFormData({ ...formData, schedule_times: times })}
+                maxRunsPerDay={formData.max_runs_per_day}
+                estimatedRunDurationMinutes={Math.ceil((formData.city_count * formData.niche_count) * 1.5)}
+              />
+
+              {formData.schedule_times && formData.schedule_times.length > 0 && (
+                <div className="mt-4 flex gap-3">
+                  <div className="flex-1 px-4 py-3 bg-purple-500/10 border border-purple-500/30 rounded-lg">
+                    <p className="text-xs text-purple-300">Requisições por Execução</p>
+                    <p className="text-lg font-bold text-purple-400">📊 {formData.city_count * formData.niche_count * 2}</p>
+                  </div>
+                  <div className="flex-1 px-4 py-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                    <p className="text-xs text-blue-300">Requisições por Dia</p>
+                    <p className="text-lg font-bold text-blue-400">📅 {(formData.city_count * formData.niche_count * 2) * (formData.schedule_times?.length || 0)}</p>
+                  </div>
+                </div>
+              )}
 
               <button
                 onClick={handleSaveConfig}
@@ -327,92 +513,6 @@ export default function AutoSearchPage() {
                 </>
               )}
             </button>
-          </div>
-
-          <div className="rounded-2xl border border-surface-border bg-surface p-6 h-fit">
-            <h3 className="text-lg font-bold text-white mb-4">Histórico Recente</h3>
-            <div className="space-y-2 max-h-96 overflow-y-auto">
-              {runs.length === 0 ? (
-                <p className="text-gray-400 text-sm">Nenhuma execução ainda</p>
-              ) : (
-                runs.map((run) => (
-                  <button
-                    key={run.id}
-                    onClick={() => handleLoadRunDetail(run.id)}
-                    className={`w-full text-left p-3 rounded-lg border transition-all ${
-                      selectedRunId === run.id
-                        ? 'border-accent-purple bg-accent-purple/10'
-                        : 'border-surface-border hover:border-accent-purple'
-                    }`}
-                  >
-                    <div className="text-xs text-gray-400">{new Date(run.started_at).toLocaleString('pt-BR')}</div>
-                    <div className={`text-sm font-semibold ${
-                      run.status === 'completed' ? 'text-green-400' :
-                      run.status === 'running' ? 'text-yellow-400' :
-                      run.status === 'cancelled' ? 'text-orange-400' :
-                      run.status === 'interrupted' ? 'text-red-400' :
-                      'text-red-400'
-                    }`}>
-                      {run.status === 'completed' ? '✓ Concluído' :
-                       run.status === 'running' ? '⚙ Rodando' :
-                       run.status === 'cancelled' ? '⊘ Cancelado' :
-                       run.status === 'interrupted' ? '⚠ Interrompido' :
-                       run.status === 'completed_with_errors' ? '⚠ Com Erros' :
-                       '✕ Falhou'}
-                    </div>
-                    <div className="text-xs text-gray-500 mt-1">{run.searches_completed || 0}/{run.searches_total} buscas</div>
-                  </button>
-                ))
-              )}
-            </div>
-
-            {selectedRunDetail && (
-              <div className="mt-6 pt-6 border-t border-surface-border">
-                <div className="flex items-center justify-between mb-3">
-                  <h4 className="font-semibold text-white text-sm">Detalhes da Execução</h4>
-                  {selectedRunDetail.run.status === 'running' && (
-                    <button
-                      onClick={handleStopRun}
-                      disabled={stopRequesting}
-                      className="text-xs px-3 py-1 rounded bg-red-500/20 text-red-400 hover:bg-red-500/30 disabled:opacity-60 transition-all"
-                    >
-                      {stopRequesting ? 'Parando...' : '⊘ Parar'}
-                    </button>
-                  )}
-                </div>
-
-                {selectedRunDetail.run.status === 'running' && (
-                  <div className="mb-3 p-2 bg-yellow-500/10 border border-yellow-500/30 rounded text-xs text-yellow-400">
-                    📡 Recebendo atualizações ao vivo...
-                  </div>
-                )}
-
-                <div className="space-y-2 text-xs text-gray-300">
-                  <p>Cidades: {Array.isArray(selectedRunDetail.run.cities) ? selectedRunDetail.run.cities.join(', ') : 'N/A'}</p>
-                  <p>Nichos: {Array.isArray(selectedRunDetail.run.niches) ? selectedRunDetail.run.niches.join(', ') : 'N/A'}</p>
-                  <p className="font-semibold text-white mt-2">
-                    Progresso: {selectedRunDetail.run.searches_completed || 0}/{selectedRunDetail.run.searches_total}
-                  </p>
-                  <p className="text-gray-500">Falhadas: {selectedRunDetail.run.searches_failed || 0}</p>
-
-                  {selectedRunDetail.run.error_message && (
-                    <p className="mt-2 p-1 bg-red-500/10 text-red-400 rounded">{selectedRunDetail.run.error_message}</p>
-                  )}
-
-                  <p className="text-gray-500 mt-3 font-semibold text-gray-200">Buscas Detalhadas:</p>
-                  <div className="space-y-1 max-h-40 overflow-y-auto">
-                    {selectedRunDetail.searches.map((search) => (
-                      <div key={search.id} className="text-gray-400 p-1 bg-charcoal rounded text-xs">
-                        <div className={search.status === 'completed' ? 'text-green-400' : search.status === 'error' ? 'text-red-400' : 'text-gray-400'}>
-                          {search.query} - {search.location}
-                        </div>
-                        {search.error_message && <div className="text-red-400 text-xs mt-0.5">{search.error_message}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            )}
           </div>
         </div>
       </div>

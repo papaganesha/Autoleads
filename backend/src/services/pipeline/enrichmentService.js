@@ -75,25 +75,26 @@ async function enrichLead(lead, rawWebsiteUri) {
     errors.push(`Scoring: ${scoreErr.message}`);
   }
 
-  if (score) {
-    try {
-      await copyGenerator.generateCopyVariations(lead, instagramData, [], score);
-    } catch (copyErr) {
-      console.error(`[Enrichment] Copy generation failed for lead ${lead.id}:`, copyErr.message);
-      await supabase
-        .from('copy_variations')
-        .upsert({
-          lead_id: lead.id,
-          pain_point: null,
-          social_proof: null,
-          urgency: null,
-          value: null,
-          generated_at: new Date().toISOString(),
-        }, { onConflict: 'lead_id' });
-      enrichmentFailed = true;
-      errors.push(`CopyGen: ${copyErr.message}`);
-    }
-  }
+  // TODO: Re-enable copy generation when Gemini quota is available or on a paid plan
+  // if (score) {
+  //   try {
+  //     await copyGenerator.generateCopyVariations(lead, instagramData, [], score);
+  //   } catch (copyErr) {
+  //     console.error(`[Enrichment] Copy generation failed for lead ${lead.id}:`, copyErr.message);
+  //     await supabase
+  //       .from('copy_variations')
+  //       .upsert({
+  //         lead_id: lead.id,
+  //         pain_point: null,
+  //         social_proof: null,
+  //         urgency: null,
+  //         value: null,
+  //         generated_at: new Date().toISOString(),
+  //       }, { onConflict: 'lead_id' });
+  //     enrichmentFailed = true;
+  //     errors.push(`CopyGen: ${copyErr.message}`);
+  //   }
+  // }
 
   if (score && score.temperature === 'hot' && !enrichmentFailed) {
     try {

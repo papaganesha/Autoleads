@@ -78,7 +78,7 @@ function calculateScore(lead, instagramData, competitors) {
 
   // Determine temperature (LOW-TECH scoring: higher = better opportunities)
   let temperature;
-  if (total >= 70) {
+  if (total >= 65) {
     temperature = 'hot';    // Ideal: very low-tech, huge opportunity
   } else if (total >= 40) {
     temperature = 'warm';   // Moderate opportunity

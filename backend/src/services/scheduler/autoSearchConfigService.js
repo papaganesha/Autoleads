@@ -42,10 +42,10 @@ function validateConfig(config) {
   if (!Array.isArray(config.schedule_times)) {
     errors.push('schedule_times must be an array');
   } else {
-    const timeRegex = /^(0[0-9]|1[0-9]|2[0-3]):00$/;
+    const timeRegex = /^(0[0-9]|1[0-9]|2[0-3]):(0[0-9]|1[0-9]|2[0-9]|3[0-9]|4[0-9]|5[0-9])$/;
     config.schedule_times.forEach((t, i) => {
       if (!timeRegex.test(t)) {
-        errors.push(`schedule_times[${i}]: "${t}" must be in format HH:00 (e.g., "08:00")`);
+        errors.push(`schedule_times[${i}]: "${t}" must be in format HH:MM (e.g., "08:00" or "14:30")`);
       }
     });
   }
@@ -80,7 +80,10 @@ async function updateConfig(config) {
     throw new Error(`Config validation failed: ${errors.join('; ')}`);
   }
 
-  const { data, error } = await supabase
+  // Get current config ID first
+  const currentConfig = await getConfig();
+
+  const { error } = await supabase
     .from('auto_search_config')
     .update({
       is_enabled: config.is_enabled,
@@ -96,28 +99,54 @@ async function updateConfig(config) {
       results_per_search: config.results_per_search,
       updated_at: new Date().toISOString(),
     })
-    .select()
-    .single();
+    .eq('id', currentConfig.id);
 
   if (error) {
     throw new Error(`Failed to update config: ${error.message}`);
   }
 
-  return data;
+  return await getConfig();
+}
+
+async function addNichesUsedToday(niches) {
+  const currentConfig = await getConfig();
+  const today = new Date().toISOString().split('T')[0];
+  const lastReset = currentConfig.niches_reset_at
+    ? new Date(currentConfig.niches_reset_at).toISOString().split('T')[0]
+    : null;
+
+  // If it's a new day, reset the tracking
+  const nichesUsed = today !== lastReset
+    ? niches
+    : [...(currentConfig.niches_used_today || []), ...niches];
+
+  const { error } = await supabase
+    .from('auto_search_config')
+    .update({
+      niches_used_today: nichesUsed,
+      niches_reset_at: today === lastReset ? currentConfig.niches_reset_at : new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', currentConfig.id);
+
+  if (error) {
+    throw new Error(`Failed to update niches tracking: ${error.message}`);
+  }
 }
 
 async function toggleEnabled(enabled) {
-  const { data, error } = await supabase
+  const currentConfig = await getConfig();
+
+  const { error } = await supabase
     .from('auto_search_config')
     .update({ is_enabled: enabled })
-    .select()
-    .single();
+    .eq('id', currentConfig.id);
 
   if (error) {
     throw new Error(`Failed to toggle enabled: ${error.message}`);
   }
 
-  return data;
+  return await getConfig();
 }
 
-module.exports = { getConfig, updateConfig, toggleEnabled, validateConfig, VALID_UFS };
+module.exports = { getConfig, updateConfig, toggleEnabled, validateConfig, VALID_UFS, addNichesUsedToday };
